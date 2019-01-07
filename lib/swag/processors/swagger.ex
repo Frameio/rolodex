@@ -14,6 +14,7 @@ defmodule Swag.Processors.Swagger do
     } |> Jason.encode!
   end
 
+  @imple Swag.Processor
   def init(config) do
     """
     {\"info\":{
@@ -25,6 +26,7 @@ defmodule Swag.Processors.Swagger do
     """
   end
 
+  @imple Swag.Processor
   def finish(_config) do
     """
     ]}
