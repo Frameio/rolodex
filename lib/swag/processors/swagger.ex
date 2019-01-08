@@ -28,7 +28,7 @@ defmodule Swag.Processors.Swagger do
   end
 
   @impl Swag.Processor
-  def finish(_config) do
+  def finalize(_config) do
     """
     ]}
     """

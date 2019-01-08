@@ -1,9 +1,20 @@
 defmodule Swag.Writer do
   @moduledoc """
-  Takes a Swag.t and converts it into a desireable output.
+  A behavior to write to arbitrary entities.
   """
 
+  @doc """
+  Should implement a way to write to a process.
+  """
   @callback write(pid, String.t()) :: :ok
-  @callback init(Swag.Config.t()) :: String.t()
+
+  @doc """
+  Returns a io_device that you can write to.
+  """
+  @callback init(Swag.Config.t()) :: {:ok, pid} | {:error, any}
+
+  @doc """
+  Closes the given pid
+  """
   @callback close(pid) :: :ok | {:error, any}
 end
