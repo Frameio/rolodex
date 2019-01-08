@@ -3,10 +3,10 @@ defmodule Swag.Writers.FileWriter do
 
   @impl Swag.Writer
   def init(config) do
-    path = Keyword.fetch!(config.writer, :write_path)
+    path = fetch_file_path(config)
 
     File.touch(path)
-    File.open(path)
+    File.open(path, [:write])
   end
 
   @impl Swag.Writer
@@ -17,5 +17,9 @@ defmodule Swag.Writers.FileWriter do
   @impl Swag.Writer
   def close(io_device) do
     File.close(io_device)
+  end
+
+  defp fetch_file_path(config) do
+    get_in(config.writer, [:config, :file_path])
   end
 end

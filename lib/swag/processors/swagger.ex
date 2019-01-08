@@ -3,7 +3,7 @@ defmodule Swag.Processors.Swagger do
   @open_api_version "3.0.0"
 
   @impl Swag.Processor
-  def process(%Swag{} = data) do
+  def process(%Swag{} = data, _config) do
     %{
       data.path => %{
         data.verb => %{
@@ -14,19 +14,19 @@ defmodule Swag.Processors.Swagger do
     } |> Jason.encode!
   end
 
-  @imple Swag.Processor
+  @impl Swag.Processor
   def init(config) do
     """
     {\"info\":{
       \"description\":\"#{config.description}\",
       \"title\":\"#{config.title}\",
       \"version\":\"#{config.version}\"},
-    \"openapi\":\"#{@open_api_version}\"
+    \"openapi\":\"#{@open_api_version}\",
     \"paths\":[
     """
   end
 
-  @imple Swag.Processor
+  @impl Swag.Processor
   def finish(_config) do
     """
     ]}

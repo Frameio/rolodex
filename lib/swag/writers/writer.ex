@@ -5,5 +5,5 @@ defmodule Swag.Writer do
 
   @callback write(pid, String.t) :: :ok
   @callback init(Swag.Config.t) :: String.t
-  @callback close(pid) :: :ok | {:error, posix() | :badarg | :terminated}
+  @callback close(pid) :: :ok | {:error, any}
 end

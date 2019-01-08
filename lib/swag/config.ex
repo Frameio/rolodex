@@ -4,16 +4,21 @@ defmodule Swag.Config do
   defstruct [
     :router,
     :pipe_through_mapping,
-    :writer,
     :version,
     :title,
     :description,
     :version,
     filter: :none,
+    writer: [
+      config: [
+        :file_path
+      ],
+      module: Swag.Writers.FileWriter,
+    ],
     processor: Swag.Processors.Swagger,
   ]
 
-  def new(map) do
-    struct(__MODULE__, map)
+  def new(kwl \\ []) do
+    struct(__MODULE__, kwl)
   end
 end
