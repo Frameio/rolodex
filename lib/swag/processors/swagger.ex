@@ -8,10 +8,11 @@ defmodule Swag.Processors.Swagger do
       data.path => %{
         data.verb => %{
           "description" => data.description,
-          "responses" => data.responses,
-        },
+          "responses" => data.responses
+        }
       }
-    } |> Jason.encode!
+    }
+    |> Jason.encode!()
   end
 
   @impl Swag.Processor

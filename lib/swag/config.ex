@@ -13,9 +13,9 @@ defmodule Swag.Config do
       config: [
         :file_path
       ],
-      module: Swag.Writers.FileWriter,
+      module: Swag.Writers.FileWriter
     ],
-    processor: Swag.Processors.Swagger,
+    processor: Swag.Processors.Swagger
   ]
 
   def new(kwl \\ []) do

@@ -9,7 +9,7 @@ defmodule Swag do
     :query_params,
     :responses,
     :verb,
-    :tags,
+    :tags
   ]
 
   @moduledoc """
@@ -46,7 +46,7 @@ defmodule Swag do
 
     Code.fetch_docs(plug)
     |> find_action(action)
-    |> new([path: path, pipe_through: pipe_through, plug: plug, verb: verb])
+    |> new(path: path, pipe_through: pipe_through, plug: plug, verb: verb)
   end
 
   def find_action(docs, action) do
@@ -58,10 +58,11 @@ defmodule Swag do
   end
 
   def new(doc, kwl \\ []) do
-    {_, _, _, description, metadata} = case doc do
-      nil -> {:any, :any, :any, "", %{}}
-      doc -> doc
-    end
+    {_, _, _, description, metadata} =
+      case doc do
+        nil -> {:any, :any, :any, "", %{}}
+        doc -> doc
+      end
 
     data = Map.new(kwl)
 
