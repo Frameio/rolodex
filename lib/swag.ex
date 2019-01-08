@@ -73,7 +73,11 @@ defmodule Swag do
 
     optional = Map.new(kwl)
 
-    description = Map.get(description, config.locale)
+    description = case description do
+      :none -> ""
+      description when is_map(description) -> Map.get(description, config.locale)
+      description -> description
+    end
 
     %{headers: pipe_headers} =
       optional
@@ -94,6 +98,7 @@ defmodule Swag do
   end
 
   def pipe_through_mapping(nil, _), do: PipeThroughMap.new()
+  def pipe_through_mapping(_, %{pipe_through_mapping: nil}), do: PipeThroughMap.new()
   def pipe_through_mapping(pipe_through, config) when is_list pipe_through do
     Enum.reduce(pipe_through, PipeThroughMap.new(), fn pt, acc ->
       case pipe_through_mapping(pt, config) do
