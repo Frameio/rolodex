@@ -8,7 +8,7 @@ defmodule Swag.Config do
     :router,
     :title,
     :version,
-    :writer,
+    :writer
   ]
 
   defstruct [
@@ -25,24 +25,24 @@ defmodule Swag.Config do
         :file_path
       ],
       module: Swag.Writers.FileWriter
-    ],
+    ]
   ]
 
   @type t :: %__MODULE__{
-    description: binary(),
-    filter: keyword() | nil,
-    locale: binary(),
-    pipe_through_mapping: pipe_through_mapping | nil,
-    processor: module(),
-    router: module(),
-    title: binary(),
-    version: binary(),
-    writer: keyword(),
-  }
+          description: binary(),
+          filter: keyword() | nil,
+          locale: binary(),
+          pipe_through_mapping: pipe_through_mapping | nil,
+          processor: module(),
+          router: module(),
+          title: binary(),
+          version: binary(),
+          writer: keyword()
+        }
 
   @type pipe_through_mapping :: %{
-    optional(:atom) => PipeThroughMap.t
-  }
+          optional(:atom) => PipeThroughMap.t()
+        }
 
   def new(kwl \\ []) do
     struct(__MODULE__, kwl)

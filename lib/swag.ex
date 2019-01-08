@@ -15,21 +15,21 @@ defmodule Swag do
     :tags,
     :verb,
     headers: %{},
-    metadata: %{},
+    metadata: %{}
   ]
 
   @type t :: %__MODULE__{
-    body: binary(),
-    description: binary(),
-    headers: %{},
-    metadata: %{},
-    path: binary(),
-    pipe_through: [atom()],
-    query_params: %{},
-    responses: %{},
-    tags: [binary()],
-    verb: atom(),
-  }
+          body: binary(),
+          description: binary(),
+          headers: %{},
+          metadata: %{},
+          path: binary(),
+          pipe_through: [atom()],
+          query_params: %{},
+          responses: %{},
+          tags: [binary()],
+          verb: atom()
+        }
 
   def generate_documentation(config) do
     %{processor: processor, writer: writer} = config
@@ -73,11 +73,12 @@ defmodule Swag do
 
     optional = Map.new(kwl)
 
-    description = case description do
-      :none -> ""
-      description when is_map(description) -> Map.get(description, config.locale)
-      description -> description
-    end
+    description =
+      case description do
+        :none -> ""
+        description when is_map(description) -> Map.get(description, config.locale)
+        description -> description
+      end
 
     %{headers: pipe_headers} =
       optional
@@ -99,10 +100,13 @@ defmodule Swag do
 
   def pipe_through_mapping(nil, _), do: PipeThroughMap.new()
   def pipe_through_mapping(_, %{pipe_through_mapping: nil}), do: PipeThroughMap.new()
-  def pipe_through_mapping(pipe_through, config) when is_list pipe_through do
+
+  def pipe_through_mapping(pipe_through, config) when is_list(pipe_through) do
     Enum.reduce(pipe_through, PipeThroughMap.new(), fn pt, acc ->
       case pipe_through_mapping(pt, config) do
-        nil -> acc
+        nil ->
+          acc
+
         mapping ->
           Map.merge(acc, mapping, fn
             k, v1, v2 when k in [:headers, :query_params, :body] -> Map.merge(v1, v2)
@@ -111,6 +115,7 @@ defmodule Swag do
       end
     end)
   end
+
   def pipe_through_mapping(pipe_through, config) do
     Map.get(config.pipe_through_mapping, pipe_through, nil)
     |> PipeThroughMap.new()
