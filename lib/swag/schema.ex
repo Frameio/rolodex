@@ -50,9 +50,10 @@ defmodule Swag.Object do
           __MODULE__.__object__(:name) => %{
             "type" => "object",
             "description" => __MODULE__.__object__(:desc),
-            "properties" => Map.new(unquote(fields), fn {k, v} ->
-              {Atom.to_string(k), Swag.Object.to_json_type(v)}
-            end)
+            "properties" =>
+              Map.new(unquote(fields), fn {k, v} ->
+                {Atom.to_string(k), Swag.Object.to_json_type(v)}
+              end)
           }
         }
       end

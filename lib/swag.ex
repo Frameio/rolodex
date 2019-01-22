@@ -38,23 +38,45 @@ defmodule Swag do
     {:ok, device} = writer.init(config)
     writer.write(device, processor.init(config))
 
-    paths =
+    flow =
       config.router.__routes__
       |> Flow.from_enumerable()
       |> Flow.map(&generate_swag_struct(&1, config))
+
+    schemas =
+      flow
+      |> Flow.reduce(fn -> %{} end, &generate_schema_refs/2)
+      |> Map.new()
+
+    paths =
+      flow
       |> Flow.reject(fn item ->
         case config.filter do
           :none -> false
           filter -> item == filter
         end
       end)
-      |> Flow.map(&processor.process(&1, config))
+      |> Flow.map(&processor.process(&1, schemas, config))
       |> Enum.join(",")
 
     writer.write(device, paths)
     writer.write(device, processor.finalize(config))
     writer.close(device)
   end
+
+  def generate_schema_refs(%Swag{responses: responses}, acc) do
+    Enum.reduce(responses, acc, fn {_, v}, refs ->
+      case can_generate_schema?(v) do
+        true -> Map.put_new(refs, v, v.to_json_schema())
+        false -> refs
+      end
+    end)
+  end
+
+  defp can_generate_schema?(mod) when is_atom(mod),
+    do: :erlang.function_exported(mod, :to_json_schema, 0)
+
+  defp can_generate_schema?(_), do: false
 
   def generate_swag_struct(route, config) do
     %{path: path, pipe_through: pipe_through, plug: plug, verb: verb, opts: action} = route
@@ -65,11 +87,7 @@ defmodule Swag do
   end
 
   def new(doc, config, kwl \\ []) do
-    {_, _, _, description, documentation_metadata} =
-      case doc do
-        nil -> {:any, :any, :any, "", %{}}
-        doc -> doc
-      end
+    {description, documentation_metadata} = process(doc)
 
     optional = Map.new(kwl)
 
@@ -96,6 +114,12 @@ defmodule Swag do
       |> Map.put(:metadata, Map.get(documentation_metadata, :metadata, %{}))
 
     struct(%__MODULE__{}, data)
+  end
+
+  def process(doc) do
+    {_, _, _, desc, metadata} = doc
+
+    {desc, metadata}
   end
 
   def pipe_through_mapping(nil, _), do: PipeThroughMap.new()
