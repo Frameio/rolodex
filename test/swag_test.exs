@@ -4,10 +4,115 @@ defmodule SwagTest do
 
   alias Swag.{Config, PipeThroughMap}
 
-  describe "#generate_documentation/1" do
+  defmodule User do
+    def to_json_schema() do
+      %{
+        "description" => "User response test"
+      }
+    end
   end
 
-  describe "#gerenate_swag_struct/1" do
+  defmodule Comment do
+    def to_json_schema() do
+      %{
+        "description" => "Comment response test"
+      }
+    end
+  end
+
+  defmodule NotFound do
+    def to_json_schema() do
+      %{
+        "description" => "Not found response test"
+      }
+    end
+  end
+
+  describe "#generate_schema_refs/2" do
+    def generate_helper(swags) do
+      swags
+      |> Flow.from_enumerable()
+      |> Flow.reduce(fn -> %{} end, &Swag.generate_schema_refs/2)
+      |> Map.new()
+    end
+
+    test "Generates multiple schemas from multiple response types" do
+      swags = [
+        %Swag{
+          responses: %{
+            200 => User,
+            404 => NotFound
+          }
+        }
+      ]
+
+      assert(
+        generate_helper(swags) == %{
+          User => %{
+            "description" => "User response test"
+          },
+          NotFound => %{
+            "description" => "Not found response test"
+          }
+        }
+      )
+    end
+
+    test "Does not duplicate schemas" do
+      swags = [
+        %Swag{
+          responses: %{
+            200 => User,
+            404 => NotFound
+          }
+        },
+        %Swag{
+          responses: %{
+            200 => Comment,
+            404 => NotFound
+          }
+        }
+      ]
+
+      assert(
+        generate_helper(swags) == %{
+          User => %{
+            "description" => "User response test"
+          },
+          Comment => %{
+            "description" => "Comment response test"
+          },
+          NotFound => %{
+            "description" => "Not found response test"
+          }
+        }
+      )
+    end
+
+    test "Handles non-generated schemas" do
+      swags = [
+        %Swag{
+          responses: %{
+            200 => User,
+            201 => :ok,
+            203 => "moved permanently",
+            123 => %{"hello" => "world"},
+            404 => NotFound
+          }
+        }
+      ]
+
+      assert(
+        generate_helper(swags) == %{
+          User => %{
+            "description" => "User response test"
+          },
+          NotFound => %{
+            "description" => "Not found response test"
+          }
+        }
+      )
+    end
   end
 
   describe "#find_action/2" do

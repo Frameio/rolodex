@@ -12,7 +12,7 @@ defmodule Swag.Processor do
   Process is responsible for turning each Swag.t() it receives and turning it
   into a string so that it can be written.
   """
-  @callback process(Swag.t(), Swag.Config.t()) :: String.t()
+  @callback process(Swag.t(), map(), Swag.Config.t()) :: String.t()
 
   @doc """
   Init is responsible for returning a string that should get written at the top
