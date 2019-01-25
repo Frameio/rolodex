@@ -1,9 +1,9 @@
-defmodule Swag.Route do
+defmodule Rolodex.Route do
   @moduledoc """
   Logic to process and represent a single route path in your API.
   """
 
-  alias Swag.PipeThroughMap
+  alias Rolodex.PipeThroughMap
 
   defstruct [
     :body,

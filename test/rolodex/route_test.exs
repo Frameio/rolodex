@@ -1,10 +1,10 @@
-defmodule Swag.RouteTest do
+defmodule Rolodex.RouteTest do
   use ExUnit.Case
 
-  alias Swag.{Config, Route, PipeThroughMap}
+  alias Rolodex.{Config, Route, PipeThroughMap}
 
   describe "#new/3" do
-    test "It takes elixir documentation and returns a Swag struct" do
+    test "It takes elixir documentation and returns a Rolodex struct" do
       doc =
         {{:function, :index, 2}, 8, ["index(conn, _)"], %{"en" => "It ensures the app is alive"},
          %{headers: %{}}}

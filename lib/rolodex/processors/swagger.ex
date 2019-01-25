@@ -1,8 +1,8 @@
-defmodule Swag.Processors.Swagger do
-  @behaviour Swag.Processor
+defmodule Rolodex.Processors.Swagger do
+  @behaviour Rolodex.Processor
   @open_api_version "3.0.0"
 
-  @impl Swag.Processor
+  @impl Rolodex.Processor
   def process(config, routes, schemas) do
     headers = process_headers(config)
     processed_routes = process_routes(routes, schemas)
@@ -11,7 +11,7 @@ defmodule Swag.Processors.Swagger do
     finalize(headers, processed_routes, processed_schemas)
   end
 
-  @impl Swag.Processor
+  @impl Rolodex.Processor
   def process_headers(config) do
     %{
       "openapi" => @open_api_version,
@@ -23,7 +23,7 @@ defmodule Swag.Processors.Swagger do
     }
   end
 
-  @impl Swag.Processor
+  @impl Rolodex.Processor
   def process_routes(routes, schemas) do
     routes
     |> Flow.from_enumerable()
@@ -31,7 +31,7 @@ defmodule Swag.Processors.Swagger do
     |> Enum.to_list()
   end
 
-  @impl Swag.Processor
+  @impl Rolodex.Processor
   def process_schemas(schemas) do
     schemas
     |> Map.new(fn {mod, schema} -> {mod.__object__(:name), schema} end)
