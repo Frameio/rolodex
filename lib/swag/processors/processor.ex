@@ -1,33 +1,34 @@
 defmodule Swag.Processor do
   @moduledoc """
-  Takes a Swag.t and converts it into a desireable output. The only function you
-  really need to implement is process/2. init/1 and finalize/1 are used to
-  surround the data thats processed with things that you only want to do at the
-  beginning or the end of the file respectively.
+  Takes a Swag.Config.t(), a list of Swag.Route.t(), and a map of response
+  schemas. Transforms them into a desirable output in the form of a JSON string.
+  The only required function is process/3, which is responsible for coordinating
+  processing and returning the formatted JSON.
   """
 
-  @optional_callbacks init: 1, finalize: 1
+  @optional_callbacks process_headers: 1, process_routes: 2, process_schemas: 1
 
   @doc """
   Process is responsible for turning each Swag.t() it receives and turning it
   into a string so that it can be written.
   """
-  @callback process(Swag.t(), map(), Swag.Config.t()) :: String.t()
+  @callback process(Swag.Config.t(), [Swag.Route.t()], schemas :: map()) :: String.t()
 
   @doc """
-  Init is responsible for returning a string that should get written at the top
-  of the file. In the case of swagger, init returns information such as
-  `version`, `title`, and `description`. Keep in mind that this function may not
-  return valid json. The only requirement is that it's a string.
+  Generates top-level metadata for the JSON output.
   """
-  @callback init(Swag.Config.t()) :: String.t()
+  @callback process_headers(Swag.Config.t()) :: map()
+  def process_headers(_), do: %{}
 
   @doc """
-  Like init, finalize is to put anything that needs to go at the end of the
-  document.
+  Transforms each Swag.Route.t() into a map to be added to the final JSON blob.
   """
-  @callback finalize(Swag.Config.t()) :: String.t()
+  @callback process_routes([Swag.Route.t()], schemas :: map()) :: map()
+  def process_routes(_, _), do: %{}
 
-  def init(_), do: ""
-  def finalize(_), do: ""
+  @doc """
+  Transforms the schemas map into a map to be added to the final JSON blob.
+  """
+  @callback process_schemas(schemas :: map()) :: map()
+  def process_schemas(_), do: %{}
 end
