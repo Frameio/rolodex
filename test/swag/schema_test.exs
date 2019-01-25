@@ -4,13 +4,9 @@ defmodule Swag.SchemaTest do
   defmodule TestSchema do
     use Swag.Object
 
-    object "User", type: :schema do
-      @desc "The id of the user"
-      field :id, :uuid
-
-      @desc "The email of the user"
-      field :email, :string
-
+    object "User", type: :schema, desc: "A user record" do
+      field :id, :uuid, desc: "The id of the user"
+      field :email, :string, desc: "The email of the user"
       field :another_thing, :string
     end
 
@@ -23,6 +19,7 @@ defmodule Swag.SchemaTest do
         [{:id, :uuid}, {:email, :string}, {:another_thing, :string}]
       assert TestSchema.__object__(:name) == "User"
       assert TestSchema.__object__(:type) == :schema
+      assert TestSchema.__object__(:desc) == "A user record"
     end
   end
 
@@ -32,10 +29,8 @@ defmodule Swag.SchemaTest do
       assert TestSchema.email(%{a: :foo, email: :bar}, :any) == :bar
       assert TestSchema.another_thing(%{}, :any) == "hey"
     end
-  end
 
-  describe "@desc" do
-    test "You can describe the field" do
+    test "You can optionally describe a field" do
       assert TestSchema.describe(:id) == "The id of the user"
       assert TestSchema.describe(:email) == "The email of the user"
       assert TestSchema.describe(:another_thing) == nil
@@ -46,6 +41,7 @@ defmodule Swag.SchemaTest do
     test "It maps to json schema" do
       assert TestSchema.to_json_schema() == %{
         "User" => %{
+          "description" => "A user record",
           "properties" => %{
             "another_thing" => %{"type" => "string"},
             "email" => %{"type" => "string"},
