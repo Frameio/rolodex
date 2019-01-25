@@ -23,8 +23,6 @@ defmodule Swag.Object do
   defmacro __using__(_opts) do
     quote do
       Module.register_attribute(__MODULE__, :fields, accumulate: true)
-      Module.register_attribute(__MODULE__, :desc, accumlate: false)
-      Module.register_attribute(__MODULE__, :prev_desc, accumlate: false)
       Module.register_attribute(__MODULE__, :documentation, accumulate: true)
 
       import unquote(__MODULE__), only: :macros
@@ -51,6 +49,7 @@ defmodule Swag.Object do
         %{
           __MODULE__.__object__(:name) => %{
             "type" => "object",
+            "description" => __MODULE__.__object__(:desc),
             "properties" => Map.new(unquote(fields), fn {k, v} ->
               {Atom.to_string(k), Swag.Object.to_json_type(v)}
             end)
@@ -66,25 +65,15 @@ defmodule Swag.Object do
     quote do
       def __object__(:type), do: unquote(type)
       def __object__(:name), do: unquote(name)
+      def __object__(:desc), do: unquote(Keyword.get(opts, :desc, nil))
       unquote(block)
     end
   end
 
-  defmacro field(identifier, type) do
-    quote bind_quoted: [identifier: identifier, type: type] do
-
-      current_doc = Module.get_attribute(__MODULE__, :desc)
-      prev_doc = Module.get_attribute(__MODULE__, :prev_desc)
-
-      desc = case current_doc != prev_doc do
-        true ->
-          Module.put_attribute(__MODULE__, :prev_desc, current_doc)
-          current_doc
-        false -> nil
-      end
-
+  defmacro field(identifier, type, opts \\ []) do
+    quote bind_quoted: [identifier: identifier, type: type, opts: opts] do
       @fields {identifier, type}
-      @documentation {identifier, desc}
+      @documentation {identifier, Keyword.get(opts, :desc, nil)}
     end
   end
 
