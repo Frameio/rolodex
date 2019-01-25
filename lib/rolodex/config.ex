@@ -1,5 +1,5 @@
-defmodule Swag.Config do
-  alias Swag.PipeThroughMap
+defmodule Rolodex.Config do
+  alias Rolodex.PipeThroughMap
 
   @enforce_keys [
     :description,
@@ -19,12 +19,12 @@ defmodule Swag.Config do
     :version,
     filter: :none,
     locale: "en",
-    processor: Swag.Processors.Swagger,
+    processor: Rolodex.Processors.Swagger,
     writer: [
       config: [
         :file_path
       ],
-      module: Swag.Writers.FileWriter
+      module: Rolodex.Writers.FileWriter
     ]
   ]
 

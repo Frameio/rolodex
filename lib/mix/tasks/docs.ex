@@ -1,11 +1,11 @@
 defmodule Mix.Tasks.GenDocs do
   use Mix.Task
-  alias Swag.Config
+  alias Rolodex.Config
 
   def run(_args) do
-    env = Application.get_all_env(:swag)
+    env = Application.get_all_env(:rolodex)
 
-    Swag.Config.new(env)
-    |> Swag.generate_documentation()
+    Rolodex.Config.new(env)
+    |> Rolodex.generate_documentation()
   end
 end

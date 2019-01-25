@@ -13,7 +13,7 @@ defmodule InvalidMimeTypeError do
   defexception message: "Invalid mime type"
 end
 
-defmodule Swag.Object do
+defmodule Rolodex.Object do
   @json_mapping %{
     uuid: %{"type" => "string", "format" => "uuid"},
     email: %{"type" => "string", "format" => "email"},
@@ -52,7 +52,7 @@ defmodule Swag.Object do
             "description" => __MODULE__.__object__(:desc),
             "properties" =>
               Map.new(unquote(fields), fn {k, v} ->
-                {Atom.to_string(k), Swag.Object.to_json_type(v)}
+                {Atom.to_string(k), Rolodex.Object.to_json_type(v)}
               end)
           }
         }

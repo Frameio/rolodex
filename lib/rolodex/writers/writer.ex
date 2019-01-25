@@ -1,4 +1,4 @@
-defmodule Swag.Writer do
+defmodule Rolodex.Writer do
   @moduledoc """
   A behavior to write to arbitrary entities.
   """
@@ -11,7 +11,7 @@ defmodule Swag.Writer do
   @doc """
   Returns a io_device that you can write to.
   """
-  @callback init(Swag.Config.t()) :: {:ok, pid} | {:error, any}
+  @callback init(Rolodex.Config.t()) :: {:ok, pid} | {:error, any}
 
   @doc """
   Closes the given pid

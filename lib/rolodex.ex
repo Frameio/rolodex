@@ -1,9 +1,9 @@
-defmodule Swag do
+defmodule Rolodex do
   @moduledoc """
-  Documentation for Swag.
+  Documentation for Rolodex.
   """
 
-  alias Swag.{Config, Route}
+  alias Rolodex.{Config, Route}
 
   @spec generate_documentation(Config.t()) :: :ok | {:error, any()}
   def generate_documentation(config) do

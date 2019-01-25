@@ -1,8 +1,8 @@
-defmodule Swag.SchemaTest do
+defmodule Rolodex.SchemaTest do
   use ExUnit.Case
 
   defmodule TestSchema do
-    use Swag.Object
+    use Rolodex.Object
 
     object "User", type: :schema, desc: "A user record" do
       field(:id, :uuid, desc: "The id of the user")

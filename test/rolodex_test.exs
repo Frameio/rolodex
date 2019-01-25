@@ -1,8 +1,8 @@
-defmodule SwagTest do
+defmodule RolodexTest do
   use ExUnit.Case
-  doctest Swag
+  doctest Rolodex
 
-  alias Swag.Route
+  alias Rolodex.Route
 
   defmodule User do
     def to_json_schema() do
@@ -48,7 +48,7 @@ defmodule SwagTest do
       ]
 
       assert(
-        Swag.generate_schemas(routes) == %{
+        Rolodex.generate_schemas(routes) == %{
           User => %{
             "description" => "User response test"
           },
@@ -76,7 +76,7 @@ defmodule SwagTest do
       ]
 
       assert(
-        Swag.generate_schemas(routes) == %{
+        Rolodex.generate_schemas(routes) == %{
           User => %{
             "description" => "User response test"
           },
@@ -104,7 +104,7 @@ defmodule SwagTest do
       ]
 
       assert(
-        Swag.generate_schemas(routes) == %{
+        Rolodex.generate_schemas(routes) == %{
           User => %{
             "description" => "User response test"
           },

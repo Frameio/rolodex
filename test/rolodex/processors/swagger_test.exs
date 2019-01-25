@@ -1,8 +1,8 @@
-defmodule Swag.Processors.SwaggerTest do
+defmodule Rolodex.Processors.SwaggerTest do
   use ExUnit.Case
 
-  alias Swag.Route
-  alias Swag.Processors.Swagger
+  alias Rolodex.Route
+  alias Rolodex.Processors.Swagger
 
   defmodule User do
     def __object__(:name), do: "User"
@@ -16,7 +16,7 @@ defmodule Swag.Processors.SwaggerTest do
 
   describe "#process/3" do
     test "Processes config, routes, and schemas into a serialized JSON blob" do
-      config = Swag.Config.new(description: "foo", title: "bar", version: "1")
+      config = Rolodex.Config.new(description: "foo", title: "bar", version: "1")
 
       schemas = %{
         User => %{
@@ -70,7 +70,7 @@ defmodule Swag.Processors.SwaggerTest do
 
   describe "#process_headers/1" do
     test "It returns a map of top-level metadata" do
-      config = Swag.Config.new(description: "foo", title: "bar", version: "1")
+      config = Rolodex.Config.new(description: "foo", title: "bar", version: "1")
       headers = Swagger.process_headers(config)
 
       assert headers == %{

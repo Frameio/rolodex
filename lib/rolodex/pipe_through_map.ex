@@ -1,4 +1,4 @@
-defmodule Swag.PipeThroughMap do
+defmodule Rolodex.PipeThroughMap do
   defstruct body: %{},
             headers: %{},
             query_params: %{}
