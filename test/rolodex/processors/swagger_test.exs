@@ -41,7 +41,9 @@ defmodule Rolodex.Processors.SwaggerTest do
                        "get" => %{
                          "description" => "It does a thing",
                          "responses" => %{
-                           200 => "#/components/schemas/User",
+                           200 => %{
+                             "ref" => "#/components/schemas/User"
+                           },
                            201 => :ok
                          }
                        }
@@ -109,11 +111,15 @@ defmodule Rolodex.Processors.SwaggerTest do
                    get: %{
                      "description" => "It does a thing",
                      "responses" => %{
-                       200 => "#/components/schemas/User",
+                       200 => %{
+                         "ref" => "#/components/schemas/User"
+                       },
                        201 => :ok,
                        203 => "moved permanently",
                        123 => %{"hello" => "world"},
-                       404 => "#/components/schemas/NotFound"
+                       404 => %{
+                         "ref" => "#/components/schemas/NotFound"
+                       }
                      }
                    }
                  }

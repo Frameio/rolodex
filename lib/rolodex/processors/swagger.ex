@@ -59,7 +59,10 @@ defmodule Rolodex.Processors.Swagger do
         {status_code, response}
 
       _ ->
-        {status_code, "#/components/#{response.__object__(:type)}s/#{response.__object__(:name)}"}
+        {status_code,
+         %{
+           "ref" => "#/components/#{response.__object__(:type)}s/#{response.__object__(:name)}"
+         }}
     end
   end
 

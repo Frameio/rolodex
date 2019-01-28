@@ -1,10 +1,3 @@
-defprotocol API.Web.Cereal do
-  @doc """
-  Translates a struct into json through the defined schema
-  """
-  def to_json(item)
-end
-
 defmodule InvalidObjectTypeError do
   defexception message: "Invalid schema type"
 end

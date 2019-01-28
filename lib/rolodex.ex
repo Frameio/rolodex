@@ -1,49 +1,122 @@
 defmodule Rolodex do
   @moduledoc """
-  Documentation for Rolodex.
+  Rolodex inspects a Phoenix Router and transforms @doc annotations on your
+  controller actions into a JSON blob of documentation in the format of your choice.
+
+  `Rolodex.run/1` encapsulates the full doc generation process. Rolodex traverses
+  your Phoenix router, collects route documentation, resolves the shape of
+  the responses, encodes the data into JSON, and writes it out to the destination
+  of your choosing.
+
+  See `Rolodex.Config` for more information about how to configure Rolodex doc
+  generation.
+
+  ## A high level example
+
+    # Your Phoenix router
+    defmodule MyRouter do
+      pipeline :api do
+        plug MyPlug
+      end
+
+      scope "/api" do
+        pipe_through [:api]
+
+        get "/test", MyController, :index
+      end
+    end
+
+    # Your controller
+    defmodule MyController do
+      @doc [
+        headers: %{foo: :bar},
+        body: %{foo: :bar},
+        query_params: %{"foo" => "bar"},
+        responses: %{200 => MyResponse},
+        metadata: %{public: true},
+        tags: ["foo", "bar"]
+      ]
+      @doc "My index action"
+      def index(conn, _), do: conn
+    end
+
+    # Your response schema
+    defmodule MyResponse do
+      object "MyResponse", type: :schema, desc: "A response" do
+        field(:id, :uuid)
+        field(:name, :string, desc: "The response name")
+      end
+    end
+
+    # In mix.exs
+    config :rolodex,
+      title: "MyApp",
+      description: "An example",
+      version: "1.0.0",
+      router: MyRouter,
+      pipelines: %{
+        api: %{
+          headers: %{auth: true}
+        }
+      }
+
+    # Then...
+    Application.get_all_env(:rolodex)
+    |> Rolodex.Config.new()
+    |> Rolodex.run()
+
+    # The JSON written out to file should look like
+    %{
+      "openapi" => "3.0.0",
+      "info" => %{
+        "title" => "MyApp",
+        "description" => "An example",
+        "version" => "1.0.0"
+      },
+      "paths" => %{
+        "/api/test" => %{
+          "get" => %{
+            "headers" => %{"auth" => true, "foo" => "bar"},
+            "body" => %{"foo" => "bar"},
+            "query_params" => %{"foo" => "bar"},
+            "responses" => %{
+              "200" => %{
+                "ref" => "#/components/schemas/MyResponse"
+              }
+            },
+            "metadata" => %{"public" => true},
+            "tags" => ["foo", "bar"]
+          }
+        }
+      },
+      "components" => %{
+        "schemas" => %{
+          "MyResponse" => %{
+            "type" => "object",
+            "description" => "A response",
+            "properties" => %{
+              "id" => %{"type" => "string", "format" => "uuid"},
+              "name" => %{"type" => "string", "description" => "The response name"}
+            }
+          }
+        }
+      }
+    }
   """
 
   alias Rolodex.{Config, Route}
 
-  @spec generate_documentation(Config.t()) :: :ok | {:error, any()}
-  def generate_documentation(config) do
-    routes = generate_routes(config)
-    schemas = generate_schemas(routes)
-    processed = process(config, routes, schemas)
-
-    write(config, processed)
+  @doc """
+  Runs Rolodex and writes out documentation JSON to the specified destination
+  """
+  @spec run(Rolodex.Config.t()) :: :ok | {:error, any()}
+  def run(config) do
+    generate_documentation(config)
+    |> write(config)
   end
 
-  @spec generate_routes(Config.t()) :: [Route.t()]
-  def generate_routes(%Config{router: router} = config) do
-    router.__routes__()
-    |> Flow.from_enumerable()
-    |> Flow.map(&Route.new(&1, config))
-    |> Flow.reject(fn route ->
-      case config.filter do
-        :none -> false
-        filter -> route == filter
-      end
-    end)
-    |> Enum.to_list()
-  end
-
-  @spec generate_schemas([Route.t()]) :: map()
-  def generate_schemas(routes) do
-    routes
-    |> Flow.from_enumerable()
-    |> Flow.reduce(fn -> %{} end, &generate_schemas/2)
-    |> Map.new()
-  end
-
-  @spec process(Config.t(), [Route.t()], map()) :: String.t()
-  def process(%Config{processor: processor} = config, routes, schemas) do
-    processor.process(config, routes, schemas)
-  end
-
-  @spec write(Config.t(), String.t()) :: :ok | {:error, any()}
-  def write(%Config{writer: writer} = config, processed) do
-    writer = Keyword.fetch!(writer, :module)
+  defp write(processed, %Config{writer: writer} = config) do
+    writer = Map.get(writer, :module)
 
     with {:ok, device} <- writer.init(config),
          :ok <- writer.write(device, processed),
@@ -54,9 +127,57 @@ defmodule Rolodex do
     end
   end
 
+  @doc """
+  Generates a list of route docs and a map of response schemas. Passes both into
+  the configured processor to generate the documentation JSON to be written to
+  file.
+  """
+  @spec generate_documentation(Rolodex.Config.t()) :: String.t()
+  def generate_documentation(%Config{processor: processor} = config) do
+    routes = generate_routes(config)
+    schemas = generate_schemas(routes)
+    processor.process(config, routes, schemas)
+  end
+
+  @doc """
+  Inspects the Phoenix Router provided in your `Rolodex.Config`. Iterates
+  through the list of routes to generate a `Rolodex.Route` for each.
+
+  If you have a `filer` set in your config, we will filter out any routes that
+  match the filter.
+  """
+  @spec generate_routes(Rolodex.Config.t()) :: [Rolodex.Route.t()]
+  def generate_routes(%Config{router: router} = config) do
+    router.__routes__()
+    |> Flow.from_enumerable()
+    |> Flow.map(&Route.new(&1, config))
+    |> Flow.reject(fn route ->
+      case config.filter do
+        :none -> false
+        # TODO(billyc): Need to rework/improve filtering i think...
+        filter -> route == filter
+      end
+    end)
+    |> Enum.to_list()
+  end
+
+  @doc """
+  Inspects the responses for each `Rolodex.Route` and generates a map of resolved
+  response data. We assume each response is a module using `Rolodex.Object` to
+  define a structured response schema.
+  """
+  @spec generate_schemas([Rolodex.Route.t()]) :: map()
+  def generate_schemas(routes) do
+    routes
+    |> Flow.from_enumerable()
+    |> Flow.reduce(fn -> %{} end, &generate_schemas/2)
+    |> Map.new()
+  end
+
   defp generate_schemas(%Route{responses: responses}, acc) do
     Enum.reduce(responses, acc, fn {_, v}, refs ->
       case can_generate_schema?(v) do
+        # TODO(billyc): we should define a type produced by to_json_schema/0 for typespecs (?)
         true -> Map.put_new(refs, v, v.to_json_schema())
         false -> refs
       end
