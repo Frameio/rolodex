@@ -47,14 +47,12 @@ defmodule Rolodex.Object do
 
       def to_json_schema() do
         %{
-          __MODULE__.__object__(:name) => %{
-            "type" => "object",
-            "description" => __MODULE__.__object__(:desc),
-            "properties" =>
-              Map.new(unquote(fields), fn {k, v} ->
-                {Atom.to_string(k), Rolodex.Object.to_json_type(v)}
-              end)
-          }
+          "type" => "object",
+          "description" => __MODULE__.__object__(:desc),
+          "properties" =>
+            Map.new(unquote(fields), fn {k, v} ->
+              {Atom.to_string(k), Rolodex.Object.to_json_type(v)}
+            end)
         }
       end
     end

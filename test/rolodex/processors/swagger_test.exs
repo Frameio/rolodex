@@ -3,16 +3,7 @@ defmodule Rolodex.Processors.SwaggerTest do
 
   alias Rolodex.Route
   alias Rolodex.Processors.Swagger
-
-  defmodule User do
-    def __object__(:name), do: "User"
-    def __object__(:type), do: :schema
-  end
-
-  defmodule NotFound do
-    def __object__(:name), do: "NotFound"
-    def __object__(:type), do: :schema
-  end
+  alias Rolodex.Mocks.{User, NotFound}
 
   describe "#process/3" do
     test "Processes config, routes, and schemas into a serialized JSON blob" do

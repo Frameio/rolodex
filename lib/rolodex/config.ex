@@ -1,6 +1,4 @@
 defmodule Rolodex.Config do
-  alias Rolodex.PipeThroughMap
-
   @enforce_keys [
     :description,
     :locale,
@@ -13,7 +11,7 @@ defmodule Rolodex.Config do
 
   defstruct [
     :description,
-    :pipe_through_mapping,
+    :pipelines,
     :router,
     :title,
     :version,
@@ -32,7 +30,7 @@ defmodule Rolodex.Config do
           description: binary(),
           filter: keyword() | nil,
           locale: binary(),
-          pipe_through_mapping: pipe_through_mapping | nil,
+          pipelines: pipeline_configs() | nil,
           processor: module(),
           router: module(),
           title: binary(),
@@ -40,11 +38,27 @@ defmodule Rolodex.Config do
           writer: keyword()
         }
 
-  @type pipe_through_mapping :: %{
-          optional(:atom) => PipeThroughMap.t()
+  @type pipeline_configs :: %{
+          optional(:atom) => Rolodex.PipelineConfig.t()
         }
 
   def new(kwl \\ []) do
     struct(__MODULE__, kwl)
+  end
+end
+
+defmodule Rolodex.PipelineConfig do
+  defstruct body: %{},
+            headers: %{},
+            query_params: %{}
+
+  @type t :: %__MODULE__{
+          body: map,
+          headers: map,
+          query_params: map
+        }
+
+  def new(params \\ %{}) do
+    struct(__MODULE__, params)
   end
 end
