@@ -3,30 +3,7 @@ defmodule RolodexTest do
   doctest Rolodex
 
   alias Rolodex.Route
-
-  defmodule User do
-    def to_json_schema() do
-      %{
-        "description" => "User response test"
-      }
-    end
-  end
-
-  defmodule Comment do
-    def to_json_schema() do
-      %{
-        "description" => "Comment response test"
-      }
-    end
-  end
-
-  defmodule NotFound do
-    def to_json_schema() do
-      %{
-        "description" => "Not found response test"
-      }
-    end
-  end
+  alias Rolodex.Mocks.{User, NotFound}
 
   describe "#generate_documentation/1" do
     # TODO
@@ -50,10 +27,20 @@ defmodule RolodexTest do
       assert(
         Rolodex.generate_schemas(routes) == %{
           User => %{
-            "description" => "User response test"
+            "description" => "A user record",
+            "properties" => %{
+              "another_thing" => %{"type" => "string"},
+              "email" => %{"type" => "string"},
+              "id" => %{"format" => "uuid", "type" => "string"}
+            },
+            "type" => "object"
           },
           NotFound => %{
-            "description" => "Not found response test"
+            "description" => "Not found response",
+            "properties" => %{
+              "message" => %{"type" => "string"}
+            },
+            "type" => "object"
           }
         }
       )
@@ -69,7 +56,6 @@ defmodule RolodexTest do
         },
         %Route{
           responses: %{
-            200 => Comment,
             404 => NotFound
           }
         }
@@ -78,13 +64,20 @@ defmodule RolodexTest do
       assert(
         Rolodex.generate_schemas(routes) == %{
           User => %{
-            "description" => "User response test"
-          },
-          Comment => %{
-            "description" => "Comment response test"
+            "description" => "A user record",
+            "properties" => %{
+              "another_thing" => %{"type" => "string"},
+              "email" => %{"type" => "string"},
+              "id" => %{"format" => "uuid", "type" => "string"}
+            },
+            "type" => "object"
           },
           NotFound => %{
-            "description" => "Not found response test"
+            "description" => "Not found response",
+            "properties" => %{
+              "message" => %{"type" => "string"}
+            },
+            "type" => "object"
           }
         }
       )
@@ -106,10 +99,20 @@ defmodule RolodexTest do
       assert(
         Rolodex.generate_schemas(routes) == %{
           User => %{
-            "description" => "User response test"
+            "description" => "A user record",
+            "properties" => %{
+              "another_thing" => %{"type" => "string"},
+              "email" => %{"type" => "string"},
+              "id" => %{"format" => "uuid", "type" => "string"}
+            },
+            "type" => "object"
           },
           NotFound => %{
-            "description" => "Not found response test"
+            "description" => "Not found response",
+            "properties" => %{
+              "message" => %{"type" => "string"}
+            },
+            "type" => "object"
           }
         }
       )

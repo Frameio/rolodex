@@ -3,23 +3,23 @@ defmodule Rolodex.Route do
   Logic to process and represent a single route path in your API.
   """
 
-  alias Rolodex.PipeThroughMap
+  alias Rolodex.{Config, PipelineConfig}
 
   defstruct [
-    :body,
     :description,
     :path,
-    :pipe_through,
-    :query_params,
-    :responses,
-    :tags,
     :verb,
+    body: %{},
     headers: %{},
-    metadata: %{}
+    query_params: %{},
+    metadata: %{},
+    responses: %{},
+    pipe_through: %{},
+    tags: []
   ]
 
   @type t :: %__MODULE__{
-          body: binary(),
+          body: %{},
           description: binary(),
           headers: %{},
           metadata: %{},
@@ -31,82 +31,60 @@ defmodule Rolodex.Route do
           verb: atom()
         }
 
-  def generate_route(route, config) do
-    %{path: path, pipe_through: pipe_through, plug: plug, verb: verb, opts: action} = route
+  def new(phoenix_route, config) do
+    # Get docs defined with the route controller action
+    {action_description, action_metadata} = fetch_route_docs(phoenix_route)
 
-    Code.fetch_docs(plug)
-    |> find_action(action)
-    |> new(config, path: path, pipe_through: pipe_through, plug: plug, verb: verb)
-  end
+    # Get shared params for any route pipelines
+    pipeline_config = get_pipeline_config(phoenix_route, config)
 
-  def new(doc, config, kwl \\ []) do
-    {description, documentation_metadata} = process(doc)
-
-    optional = Map.new(kwl)
-
-    description =
-      case description do
-        :none -> ""
-        description when is_map(description) -> Map.get(description, config.locale)
-        description -> description
-      end
-
-    %{headers: pipe_headers} =
-      optional
-      |> Map.get(:pipe_through)
-      |> pipe_through_mapping(config)
-
-    headers = Map.get(documentation_metadata, :headers, %{})
-    headers = deep_merge(pipe_headers, headers)
-
+    # Merge it all together against base params from the Phoenix.Router.Route
     data =
-      optional
-      |> deep_merge(documentation_metadata)
-      |> deep_merge(%{headers: headers})
-      |> Map.put(:description, description)
-      |> Map.put(:metadata, Map.get(documentation_metadata, :metadata, %{}))
+      phoenix_route
+      |> Map.take([:path, :pipe_through, :verb])
+      |> deep_merge(Map.from_struct(pipeline_config))
+      |> deep_merge(action_metadata)
+      |> Map.put(:description, parse_description(action_description, config))
 
-    struct(%__MODULE__{}, data)
+    struct(__MODULE__, data)
   end
 
-  def process(doc) do
-    {_, _, _, desc, metadata} = doc
+  def fetch_route_docs(%{plug: plug, opts: action}) do
+    {_, _, _, desc, metadata} =
+      Code.fetch_docs(plug)
+      |> Tuple.to_list()
+      |> Enum.at(-1)
+      |> Enum.find(fn
+        {{:function, ^action, _arity}, _, _, _, _} -> true
+        _ -> false
+      end)
 
     {desc, metadata}
   end
 
-  def pipe_through_mapping(nil, _), do: PipeThroughMap.new()
-  def pipe_through_mapping(_, %{pipe_through_mapping: nil}), do: PipeThroughMap.new()
+  def get_pipeline_config(%{pipe_through: nil}, _), do: PipelineConfig.new()
+  def get_pipeline_config(_, %Config{pipelines: nil}), do: PipelineConfig.new()
 
-  def pipe_through_mapping(pipe_through, config) when is_list(pipe_through) do
-    Enum.reduce(pipe_through, PipeThroughMap.new(), fn pt, acc ->
-      case pipe_through_mapping(pt, config) do
-        nil ->
-          acc
+  def get_pipeline_config(%{pipe_through: pipe_through}, %Config{pipelines: pipelines}) do
+    Enum.reduce(pipe_through, PipelineConfig.new(), fn pt, acc ->
+      pipeline_config =
+        pipelines
+        |> Map.get(pt, %{})
+        |> PipelineConfig.new()
 
-        mapping ->
-          Map.merge(acc, mapping, fn
-            k, v1, v2 when k in [:headers, :query_params, :body] -> Map.merge(v1, v2)
-            _, _, v2 -> v2
-          end)
-      end
+      deep_merge(acc, pipeline_config)
     end)
   end
 
-  def pipe_through_mapping(pipe_through, config) do
-    Map.get(config.pipe_through_mapping, pipe_through, nil)
-    |> PipeThroughMap.new()
+  def parse_description(:none, _), do: ""
+
+  def parse_description(description, %Config{locale: locale}) when is_map(description) do
+    Map.get(description, locale)
   end
+
+  def parse_description(description, _), do: description
 
   defp deep_merge(left, right), do: Map.merge(left, right, &deep_resolve/3)
   defp deep_resolve(_key, left = %{}, right = %{}), do: deep_merge(left, right)
   defp deep_resolve(_key, _left, right), do: right
-
-  defp find_action(docs, action) do
-    {_, _, _, _, _, _, function_documentation} = docs
-
-    Enum.find(function_documentation, fn {{:function, ac, _arity}, _, _, _, _} ->
-      ac == action
-    end)
-  end
 end

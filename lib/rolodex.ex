@@ -18,7 +18,7 @@ defmodule Rolodex do
   def generate_routes(%Config{router: router} = config) do
     router.__routes__()
     |> Flow.from_enumerable()
-    |> Flow.map(&Route.generate_route(&1, config))
+    |> Flow.map(&Route.new(&1, config))
     |> Flow.reject(fn route ->
       case config.filter do
         :none -> false
