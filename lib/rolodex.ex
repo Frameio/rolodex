@@ -1,12 +1,19 @@
 defmodule Rolodex do
   @moduledoc """
   Rolodex inspects a Phoenix Router and transforms @doc annotations on your
-  controller actions into a JSON blob of documentation in the format of your choice.
+  controller actions into a JSON blob of documentation in the format of your
+  choice.
 
-  `Rolodex.run/1` encapsulates the full doc generation process. Rolodex traverses
-  your Phoenix router, collects route documentation, resolves the shape of
-  the responses, encodes the data into JSON, and writes it out to the destination
-  of your choosing.
+  `Rolodex.run/1` encapsulates the full doc generation process. When run, it
+  will:
+
+  1) Traverse your Phoenix Router
+  2) Collect route documentation for all controller actions
+  3) Resolve the shape of the action responses
+  4) Combine these pieces with project metadata into a data format of your
+  choosing (e.g. Swagger OpenAPI)
+  4) Encode the blob into a JSON string
+  5) And finally, write it out to the destination of your choosing.
 
   See `Rolodex.Config` for more information about how to configure Rolodex doc
   generation.
@@ -143,7 +150,7 @@ defmodule Rolodex do
   Inspects the Phoenix Router provided in your `Rolodex.Config`. Iterates
   through the list of routes to generate a `Rolodex.Route` for each.
 
-  If you have a `filer` set in your config, we will filter out any routes that
+  If you have a `filter` set in your config, it will filter out any routes that
   match the filter.
   """
   @spec generate_routes(Rolodex.Config.t()) :: [Rolodex.Route.t()]
@@ -163,7 +170,7 @@ defmodule Rolodex do
 
   @doc """
   Inspects the responses for each `Rolodex.Route` and generates a map of resolved
-  response data. We assume each response is a module using `Rolodex.Object` to
+  response data. Assumes each response is a module using `Rolodex.Object` to
   define a structured response schema.
   """
   @spec generate_schemas([Rolodex.Route.t()]) :: map()

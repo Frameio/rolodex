@@ -1,21 +1,23 @@
 defmodule Rolodex.Config do
   @moduledoc """
-  Configuration for Rolodex. You can define this config in your
-  `config/<env>.exs` files, keyed by `:rolodex`, and we will pull it out in
-  `Mix.Tasks.GenDocs.run/1`.
+  Configuration for Rolodex.
+
+  You can define this config in your `config/<env>.exs` files, keyed by
+  `:rolodex`, and it will be passed into `new/1` in `Mix.Tasks.GenDocs.run/1`.
 
   ## Options
 
-  - `title` (required) - Title for your documentation output
   - `description` (required) - Description for your documentation output
-  - `version` (required) - Your documentation's version
   - `router` (required) - Phoenix Router module to inspect
-  - `processor` (default: `Rolodex.Processors.Swagger)   -
-  - `writer` (default: `%{file_path: "", writer: Rolodex.Writers.FileWriter`) - Map
-  - `locale` (default: `"en"`) - Locale key to use when processing controller
-  action descriptions
+  - `title` (required) - Title for your documentation output
+  - `version` (required) - Your documentation's version
   - `filter` (default: `:none`) - TODO
+  - `locale` (default: `"en"`) - Locale key to use when processing controller
   - `pipelines` (default: `%{}`) - Map of `Rolodex.PipelineConfig`s
+  - `processor` (default: `Rolodex.Processors.Swagger`) - Module implementing
+  the Rolodex.Processor behaviour
+  - `writer` (default: `%{file_path: "", writer: Rolodex.Writers.FileWriter`) - Map
+  action descriptions
 
   ## Example
 
@@ -38,40 +40,40 @@ defmodule Rolodex.Config do
   """
 
   @enforce_keys [
-    :title,
     :description,
-    :version,
-    :router,
+    :locale,
     :processor,
-    :writer,
-    :locale
+    :router,
+    :title,
+    :version,
+    :writer
   ]
 
   defstruct [
-    :title,
     :description,
-    :version,
     :router,
+    :title,
+    :version,
+    filter: :none,
+    locale: "en",
+    pipelines: %{},
     processor: Rolodex.Processors.Swagger,
     writer: %{
       file_path: "",
       module: Rolodex.Writers.FileWriter
-    },
-    locale: "en",
-    filter: :none,
-    pipelines: %{}
+    }
   ]
 
   @type t :: %__MODULE__{
-          title: binary(),
           description: binary(),
-          version: binary(),
-          router: module(),
-          processor: module(),
-          writer: map(),
-          locale: binary(),
           filter: keyword() | :none,
-          pipelines: pipeline_configs() | nil
+          locale: binary(),
+          pipelines: pipeline_configs() | nil,
+          processor: module(),
+          router: module(),
+          title: binary(),
+          version: binary(),
+          writer: map()
         }
 
   @type pipeline_configs :: %{

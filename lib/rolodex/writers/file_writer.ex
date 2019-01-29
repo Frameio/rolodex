@@ -22,6 +22,9 @@ defmodule Rolodex.Writers.FileWriter do
   end
 
   defp fetch_file_path(%Config{writer: writer}) do
-    Map.get(writer, :file_path, "")
+    case Map.get(writer, :file_path) do
+      nil -> {:error, :file_path_missing}
+      path -> path
+    end
   end
 end

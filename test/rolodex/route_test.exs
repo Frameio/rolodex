@@ -127,6 +127,19 @@ defmodule Rolodex.RouteTest do
              }
     end
 
+    test "Controller action params will win if in conflict with pipeline params", %{config: config} do
+      phoenix_route = %Router.Route{
+        plug: TestController,
+        opts: :conflicted,
+        path: "/v2/test",
+        pipe_through: [:api],
+        verb: :get
+      }
+
+      %Route{headers: headers} = Route.new(phoenix_route, config)
+      assert headers == %{foo: :baz}
+    end
+
     test "It handles an undocumented route" do
       phoenix_route = %Router.Route{
         plug: TestController,

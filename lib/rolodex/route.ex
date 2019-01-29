@@ -1,16 +1,15 @@
 defmodule Rolodex.Route do
   @moduledoc """
   Logic to transform a `Phoenix.Router.Route` into metadata for a
-  `Rolodex.Processor` to process. We use the `Rolodex.Config` data provided to
-  resolve shared params for pipelines and locale-based descriptions.
+  `Rolodex.Processor` to handle. It will look for any @doc annotations attached
+  to the Phoenix Controller action and use those to build the result. It also
+  uses the `Rolodex.Config` data provided to resolve shared params for pipelines
+  and fetch locale-based descriptions.
 
   This module isn't intended to be invoked directly, but instead via the steps
   encapsulated in `Rolodex.generate_routes/1`.
 
   ## Example
-
-  When you annotate your Phoenix Controller actions with `@doc` metadata, we pick
-  out the parts meaningful to Rolodex.Writers
 
     ## Your controller
     defmodule MyController do
@@ -35,9 +34,9 @@ defmodule Rolodex.Route do
       responses: %{200 => MyResponse},
       metadata: %{public: true},
       tags: ["foo", "bar"],
-      path: <from-phoenix>
-      pipe_through: <from-phoenix>
-      verb: <from-phoenix>
+      path: <from-phoenix-route>
+      pipe_through: <from-phoenix-route>
+      verb: <from-phoenix-route>
     }
   """
 
@@ -95,7 +94,7 @@ defmodule Rolodex.Route do
 
   @doc """
   Takes a Phoenix Route struct and uses `Code.fetch_docs/1` to lookup the
-  docs for the route's controller action. We return only the description and doc
+  docs for the route's controller action. Returns only the description and doc
   metadata that are used to build the `Rolodex.Route.t()` result.
 
   ## Example
@@ -162,7 +161,7 @@ defmodule Rolodex.Route do
 
   @doc """
   Takes function description metadata and returns a string. When the metadata is
-  a map keyed by locale, we use the locale set in `Rolodex.Config` to determine
+  a map keyed by locale, it uses the locale set in `Rolodex.Config` to determine
   which description string to return.
   """
   @spec parse_description(atom() | map() | binary(), Rolodex.Config.t()) :: binary()
