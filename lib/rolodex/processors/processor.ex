@@ -23,8 +23,8 @@ defmodule Rolodex.Processor do
   @doc """
   Transforms each Rolodex.Route.t() into a map to be added to the final JSON blob.
   """
-  @callback process_routes([Rolodex.Route.t()], schemas :: map()) :: map()
-  def process_routes(_, _), do: %{}
+  @callback process_routes([Rolodex.Route.t()], schemas :: map()) :: list()
+  def process_routes(_, _), do: []
 
   @doc """
   Transforms the schemas map into a map to be added to the final JSON blob.

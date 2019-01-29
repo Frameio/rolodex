@@ -1,6 +1,8 @@
 defmodule Rolodex.Writers.FileWriter do
   @behaviour Rolodex.Writer
 
+  alias Rolodex.Config
+
   @impl Rolodex.Writer
   def init(config) do
     path = fetch_file_path(config)
@@ -19,7 +21,10 @@ defmodule Rolodex.Writers.FileWriter do
     File.close(io_device)
   end
 
-  defp fetch_file_path(config) do
-    get_in(config.writer, [:config, :file_path])
+  defp fetch_file_path(%Config{writer: writer}) do
+    case Map.get(writer, :file_path) do
+      nil -> {:error, :file_path_missing}
+      path -> path
+    end
   end
 end

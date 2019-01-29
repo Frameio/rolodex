@@ -1,12 +1,13 @@
 defmodule Rolodex.RouteTest do
   use ExUnit.Case
 
+  alias Phoenix.Router
   alias Rolodex.{Route, Config, PipelineConfig}
   alias Rolodex.Mocks.TestController
 
   describe "#fetch_route_docs/1" do
     test "It returns a tuple with the description and doc metadata attached to the controller action" do
-      {desc, metadata} = Route.fetch_route_docs(%{plug: TestController, opts: :index})
+      {desc, metadata} = Route.fetch_route_docs(%Router.Route{plug: TestController, opts: :index})
 
       assert desc == %{"en" => "It's a test!"}
 
@@ -26,7 +27,7 @@ defmodule Rolodex.RouteTest do
 
     test "It returns an empty Rolodex.PipelineConfig if the current route scope has no pipe_throughs",
          %{config: config} do
-      result = Route.get_pipeline_config(%{pipe_through: nil}, config)
+      result = Route.get_pipeline_config(%Router.Route{pipe_through: nil}, config)
 
       assert result == %PipelineConfig{
                body: %{},
@@ -36,7 +37,7 @@ defmodule Rolodex.RouteTest do
     end
 
     test "It returns an empty Rolodex.PipelineConfig if there is no shared config defined" do
-      result = Route.get_pipeline_config(%{pipe_through: [:api]}, Config.new())
+      result = Route.get_pipeline_config(%Router.Route{pipe_through: [:api]}, Config.new())
 
       assert result == %PipelineConfig{
                body: %{},
@@ -48,7 +49,7 @@ defmodule Rolodex.RouteTest do
     test "It collects all shared pipeline config data for all route pipe_throughs", %{
       config: config
     } do
-      result = Route.get_pipeline_config(%{pipe_through: [:api, :web]}, config)
+      result = Route.get_pipeline_config(%Router.Route{pipe_through: [:api, :web]}, config)
 
       assert result == %PipelineConfig{
                body: %{foo: :bar},
@@ -77,7 +78,7 @@ defmodule Rolodex.RouteTest do
     setup [:setup_config]
 
     test "It builds a new Rolodex.Route for the specified controller action", %{config: config} do
-      phoenix_route = %{
+      phoenix_route = %Router.Route{
         plug: TestController,
         opts: :index,
         path: "/v2/test",
@@ -102,7 +103,7 @@ defmodule Rolodex.RouteTest do
     end
 
     test "It merges controller action params into pipeline params", %{config: config} do
-      phoenix_route = %{
+      phoenix_route = %Router.Route{
         plug: TestController,
         opts: :index,
         path: "/v2/test",
@@ -126,8 +127,21 @@ defmodule Rolodex.RouteTest do
              }
     end
 
+    test "Controller action params will win if in conflict with pipeline params", %{config: config} do
+      phoenix_route = %Router.Route{
+        plug: TestController,
+        opts: :conflicted,
+        path: "/v2/test",
+        pipe_through: [:api],
+        verb: :get
+      }
+
+      %Route{headers: headers} = Route.new(phoenix_route, config)
+      assert headers == %{foo: :baz}
+    end
+
     test "It handles an undocumented route" do
-      phoenix_route = %{
+      phoenix_route = %Router.Route{
         plug: TestController,
         opts: :undocumented,
         path: "/v2/test",

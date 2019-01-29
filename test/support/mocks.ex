@@ -10,6 +10,11 @@ defmodule Rolodex.Mocks.TestController do
   @doc "It's a test!"
   def index(_, _), do: nil
 
+  @doc [
+    headers: %{foo: :baz}
+  ]
+  def conflicted(_, _), do: nil
+
   def undocumented(_, _), do: nil
 end
 
