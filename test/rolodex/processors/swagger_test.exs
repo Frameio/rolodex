@@ -8,12 +8,7 @@ defmodule Rolodex.Processors.SwaggerTest do
   describe "#process/3" do
     test "Processes config, routes, and schemas into a serialized JSON blob" do
       config = Rolodex.Config.new(description: "foo", title: "bar", version: "1")
-
-      schemas = %{
-        User => %{
-          "description" => "User response test"
-        }
-      }
+      schemas = %{User => User.to_schema_map()}
 
       routes = [
         %Route{
@@ -42,7 +37,11 @@ defmodule Rolodex.Processors.SwaggerTest do
                          "description" => "It does a thing",
                          "responses" => %{
                            200 => %{
-                             "ref" => "#/components/schemas/User"
+                             content: %{
+                               "application/json" => %{
+                                 "$ref" => "#/components/schemas/User"
+                               }
+                             }
                            },
                            201 => :ok
                          }
@@ -53,7 +52,32 @@ defmodule Rolodex.Processors.SwaggerTest do
                  "components" => %{
                    "schemas" => %{
                      "User" => %{
-                       "description" => "User response test"
+                       type: :object,
+                       properties: %{
+                         id: %{type: :string, format: :uuid},
+                         email: %{type: :string},
+                         another_thing: %{type: :string},
+                         comment: %{
+                           "$ref" => "#/components/schemas/Comment"
+                         },
+                         comments: %{
+                           type: :array,
+                           items: %{
+                             "$ref" => "#/components/schemas/Comment"
+                           }
+                         },
+                         comments_of_many_types: %{
+                           type: :array,
+                           items: %{
+                             oneOf: [
+                               %{type: :string},
+                               %{
+                                 "$ref" => "#/components/schemas/Comment"
+                               }
+                             ]
+                           }
+                         }
+                       }
                      }
                    }
                  }
@@ -80,12 +104,8 @@ defmodule Rolodex.Processors.SwaggerTest do
   describe "#process_routes/2" do
     test "It takes a list of swag routes and schemas and returns a formatted map" do
       schemas = %{
-        User => %{
-          "description" => "User response test"
-        },
-        NotFound => %{
-          "description" => "Not found response test"
-        }
+        User => User.to_schema_map(),
+        NotFound => NotFound.to_schema_map()
       }
 
       routes = [
@@ -112,13 +132,21 @@ defmodule Rolodex.Processors.SwaggerTest do
                      "description" => "It does a thing",
                      "responses" => %{
                        200 => %{
-                         "ref" => "#/components/schemas/User"
+                         content: %{
+                           "application/json" => %{
+                             "$ref" => "#/components/schemas/User"
+                           }
+                         }
                        },
                        201 => :ok,
                        203 => "moved permanently",
                        123 => %{"hello" => "world"},
                        404 => %{
-                         "ref" => "#/components/schemas/NotFound"
+                         content: %{
+                           "application/json" => %{
+                             "$ref" => "#/components/schemas/NotFound"
+                           }
+                         }
                        }
                      }
                    }
@@ -131,20 +159,44 @@ defmodule Rolodex.Processors.SwaggerTest do
   describe "#process_schemas/1" do
     test "It processes the schemas" do
       schemas = %{
-        User => %{
-          "description" => "User response test"
-        },
-        NotFound => %{
-          "description" => "Not found response test"
-        }
+        User => User.to_schema_map(),
+        NotFound => NotFound.to_schema_map()
       }
 
       assert Swagger.process_schemas(schemas) == %{
                "User" => %{
-                 "description" => "User response test"
+                 type: :object,
+                 properties: %{
+                   id: %{type: :string, format: :uuid},
+                   email: %{type: :string},
+                   another_thing: %{type: :string},
+                   comment: %{
+                     "$ref" => "#/components/schemas/Comment"
+                   },
+                   comments: %{
+                     type: :array,
+                     items: %{
+                       "$ref" => "#/components/schemas/Comment"
+                     }
+                   },
+                   comments_of_many_types: %{
+                     type: :array,
+                     items: %{
+                       oneOf: [
+                         %{type: :string},
+                         %{
+                           "$ref" => "#/components/schemas/Comment"
+                         }
+                       ]
+                     }
+                   }
+                 }
                },
                "NotFound" => %{
-                 "description" => "Not found response test"
+                 type: :object,
+                 properties: %{
+                   message: %{type: :string}
+                 }
                }
              }
     end

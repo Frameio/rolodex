@@ -111,7 +111,7 @@ defmodule Rolodex do
     }
   """
 
-  alias Rolodex.{Config, Route}
+  alias Rolodex.{Config, Route, Utils}
 
   @doc """
   Runs Rolodex and writes out documentation JSON to the specified destination
@@ -169,31 +169,33 @@ defmodule Rolodex do
   end
 
   @doc """
-  Inspects the responses for each `Rolodex.Route` and generates a map of resolved
-  response data. Assumes each response is a module using `Rolodex.Object` to
-  define a structured response schema.
+  Inspects the responses for reach `Rolodex.Route`. For any response that is a
+  `Rolodex.Object`, we resolve the schema mappings into the final result.
   """
   @spec generate_schemas([Rolodex.Route.t()]) :: map()
   def generate_schemas(routes) do
     routes
     |> Flow.from_enumerable()
-    |> Flow.reduce(fn -> %{} end, &generate_schemas/2)
+    |> Flow.reduce(fn -> %{} end, fn %Route{responses: responses}, acc ->
+      Enum.reduce(responses, acc, &generate_schema/2)
+    end)
     |> Map.new()
   end
 
-  defp generate_schemas(%Route{responses: responses}, acc) do
-    Enum.reduce(responses, acc, fn {_, v}, refs ->
-      case can_generate_schema?(v) do
-        # TODO(billyc): we should define a type produced by to_json_schema/0 for typespecs (?)
-        true -> Map.put_new(refs, v, v.to_json_schema())
-        false -> refs
-      end
+  defp generate_schema({_, mod}, refs) do
+    case Utils.can_generate_schema?(mod) && !Map.has_key?(refs, mod) do
+      true -> generate_schema(mod, refs)
+      false -> refs
+    end
+  end
+
+  defp generate_schema(mod, refs) do
+    refs = Map.put(refs, mod, mod.to_schema_map())
+
+    # Ensure we also collect any nested objects
+    mod.nested_objects()
+    |> Enum.reduce(refs, fn nested, acc ->
+      Map.put_new(acc, nested, nested.to_schema_map())
     end)
   end
-
-  defp can_generate_schema?(mod) when is_atom(mod) do
-    :erlang.function_exported(mod, :to_json_schema, 0)
-  end
-
-  defp can_generate_schema?(_), do: false
 end

@@ -3,7 +3,7 @@ defmodule RolodexTest do
   doctest Rolodex
 
   alias Rolodex.Route
-  alias Rolodex.Mocks.{User, NotFound}
+  alias Rolodex.Mocks.{User, Comment, NotFound}
 
   describe "#generate_documentation/1" do
     # TODO
@@ -27,20 +27,69 @@ defmodule RolodexTest do
       assert(
         Rolodex.generate_schemas(routes) == %{
           User => %{
-            "description" => "A user record",
-            "properties" => %{
-              "another_thing" => %{"type" => "string"},
-              "email" => %{"type" => "string"},
-              "id" => %{"format" => "uuid", "type" => "string"}
-            },
-            "type" => "object"
+            type: :object,
+            desc: "A user record",
+            properties: %{
+              id: %{desc: "The id of the user", type: :uuid},
+              email: %{desc: "The email of the user", type: :string},
+              another_thing: %{desc: nil, type: :string},
+              comment: %{
+                type: :object,
+                desc: "A comment record",
+                ref: Comment,
+                properties: %{
+                  id: %{desc: "The comment id", type: :uuid},
+                  text: %{desc: nil, type: :string}
+                }
+              },
+              comments: %{
+                type: :array,
+                desc: nil,
+                items: %{
+                  type: :object,
+                  desc: "A comment record",
+                  ref: Comment,
+                  properties: %{
+                    id: %{desc: "The comment id", type: :uuid},
+                    text: %{desc: nil, type: :string}
+                  }
+                }
+              },
+              comments_of_many_types: %{
+                type: :array,
+                desc: "List of text or comment",
+                items: [
+                  %{type: :string},
+                  %{
+                    type: :object,
+                    desc: "A comment record",
+                    ref: Comment,
+                    properties: %{
+                      id: %{desc: "The comment id", type: :uuid},
+                      text: %{desc: nil, type: :string}
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          Comment => %{
+            type: :object,
+            desc: "A comment record",
+            properties: %{
+              id: %{desc: "The comment id", type: :uuid},
+              text: %{desc: nil, type: :string}
+            }
           },
           NotFound => %{
-            "description" => "Not found response",
-            "properties" => %{
-              "message" => %{"type" => "string"}
-            },
-            "type" => "object"
+            type: :object,
+            desc: "Not found response",
+            properties: %{
+              message: %{
+                desc: nil,
+                type: :string
+              }
+            }
           }
         }
       )
@@ -64,20 +113,69 @@ defmodule RolodexTest do
       assert(
         Rolodex.generate_schemas(routes) == %{
           User => %{
-            "description" => "A user record",
-            "properties" => %{
-              "another_thing" => %{"type" => "string"},
-              "email" => %{"type" => "string"},
-              "id" => %{"format" => "uuid", "type" => "string"}
-            },
-            "type" => "object"
+            type: :object,
+            desc: "A user record",
+            properties: %{
+              id: %{desc: "The id of the user", type: :uuid},
+              email: %{desc: "The email of the user", type: :string},
+              another_thing: %{desc: nil, type: :string},
+              comment: %{
+                type: :object,
+                desc: "A comment record",
+                ref: Comment,
+                properties: %{
+                  id: %{desc: "The comment id", type: :uuid},
+                  text: %{desc: nil, type: :string}
+                }
+              },
+              comments: %{
+                type: :array,
+                desc: nil,
+                items: %{
+                  type: :object,
+                  desc: "A comment record",
+                  ref: Comment,
+                  properties: %{
+                    id: %{desc: "The comment id", type: :uuid},
+                    text: %{desc: nil, type: :string}
+                  }
+                }
+              },
+              comments_of_many_types: %{
+                type: :array,
+                desc: "List of text or comment",
+                items: [
+                  %{type: :string},
+                  %{
+                    type: :object,
+                    desc: "A comment record",
+                    ref: Comment,
+                    properties: %{
+                      id: %{desc: "The comment id", type: :uuid},
+                      text: %{desc: nil, type: :string}
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          Comment => %{
+            type: :object,
+            desc: "A comment record",
+            properties: %{
+              id: %{desc: "The comment id", type: :uuid},
+              text: %{desc: nil, type: :string}
+            }
           },
           NotFound => %{
-            "description" => "Not found response",
-            "properties" => %{
-              "message" => %{"type" => "string"}
-            },
-            "type" => "object"
+            type: :object,
+            desc: "Not found response",
+            properties: %{
+              message: %{
+                desc: nil,
+                type: :string
+              }
+            }
           }
         }
       )
@@ -99,20 +197,69 @@ defmodule RolodexTest do
       assert(
         Rolodex.generate_schemas(routes) == %{
           User => %{
-            "description" => "A user record",
-            "properties" => %{
-              "another_thing" => %{"type" => "string"},
-              "email" => %{"type" => "string"},
-              "id" => %{"format" => "uuid", "type" => "string"}
-            },
-            "type" => "object"
+            type: :object,
+            desc: "A user record",
+            properties: %{
+              id: %{desc: "The id of the user", type: :uuid},
+              email: %{desc: "The email of the user", type: :string},
+              another_thing: %{desc: nil, type: :string},
+              comment: %{
+                type: :object,
+                desc: "A comment record",
+                ref: Comment,
+                properties: %{
+                  id: %{desc: "The comment id", type: :uuid},
+                  text: %{desc: nil, type: :string}
+                }
+              },
+              comments: %{
+                type: :array,
+                desc: nil,
+                items: %{
+                  type: :object,
+                  desc: "A comment record",
+                  ref: Comment,
+                  properties: %{
+                    id: %{desc: "The comment id", type: :uuid},
+                    text: %{desc: nil, type: :string}
+                  }
+                }
+              },
+              comments_of_many_types: %{
+                type: :array,
+                desc: "List of text or comment",
+                items: [
+                  %{type: :string},
+                  %{
+                    type: :object,
+                    desc: "A comment record",
+                    ref: Comment,
+                    properties: %{
+                      id: %{desc: "The comment id", type: :uuid},
+                      text: %{desc: nil, type: :string}
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          Comment => %{
+            type: :object,
+            desc: "A comment record",
+            properties: %{
+              id: %{desc: "The comment id", type: :uuid},
+              text: %{desc: nil, type: :string}
+            }
           },
           NotFound => %{
-            "description" => "Not found response",
-            "properties" => %{
-              "message" => %{"type" => "string"}
-            },
-            "type" => "object"
+            type: :object,
+            desc: "Not found response",
+            properties: %{
+              message: %{
+                desc: nil,
+                type: :string
+              }
+            }
           }
         }
       )

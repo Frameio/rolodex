@@ -21,19 +21,40 @@ end
 defmodule Rolodex.Mocks.User do
   use Rolodex.Object
 
-  object "User", type: :schema, desc: "A user record" do
+  object "User", desc: "A user record" do
     field(:id, :uuid, desc: "The id of the user")
     field(:email, :string, desc: "The email of the user")
-    field(:another_thing, :string)
-  end
 
-  def another_thing(_, _), do: "hey"
+    # Field w/ an ignored option
+    field(:another_thing, :string, invalid: :opt)
+
+    # Nested object
+    field(:comment, Rolodex.Mocks.Comment)
+
+    # Array of one type
+    field(:comments, :array, of: Rolodex.Mocks.Comment)
+
+    # Array of multiple types
+    field(:comments_of_many_types, :array,
+      of: [:string, Rolodex.Mocks.Comment],
+      desc: "List of text or comment"
+    )
+  end
+end
+
+defmodule Rolodex.Mocks.Comment do
+  use Rolodex.Object
+
+  object "Comment", desc: "A comment record" do
+    field(:id, :uuid, desc: "The comment id")
+    field(:text, :string)
+  end
 end
 
 defmodule Rolodex.Mocks.NotFound do
   use Rolodex.Object
 
-  object "NotFound", type: :schema, desc: "Not found response" do
+  object "NotFound", desc: "Not found response" do
     field(:message, :string)
   end
 end
