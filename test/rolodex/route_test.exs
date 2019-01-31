@@ -127,7 +127,9 @@ defmodule Rolodex.RouteTest do
              }
     end
 
-    test "Controller action params will win if in conflict with pipeline params", %{config: config} do
+    test "Controller action params will win if in conflict with pipeline params", %{
+      config: config
+    } do
       phoenix_route = %Router.Route{
         plug: TestController,
         opts: :conflicted,
