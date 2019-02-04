@@ -2,8 +2,13 @@ defmodule Rolodex.RouteTest do
   use ExUnit.Case
 
   alias Phoenix.Router
-  alias Rolodex.{Route, Config, PipelineConfig}
-  alias Rolodex.Mocks.TestController
+  alias Rolodex.Mocks.{TestController, User}
+
+  alias Rolodex.{
+    Config,
+    PipelineConfig,
+    Route
+  }
 
   describe "#fetch_route_docs/1" do
     test "It returns a tuple with the description and doc metadata attached to the controller action" do
@@ -12,10 +17,43 @@ defmodule Rolodex.RouteTest do
       assert desc == %{"en" => "It's a test!"}
 
       assert metadata == %{
-               headers: %{foo: :bar},
-               body: %{foo: :bar},
-               query_params: %{"foo" => "bar"},
-               responses: %{200 => Rolodex.Mocks.User},
+               headers: %{
+                 "X-Request-Id" => %{type: :uuid, required: true}
+               },
+               body: %{
+                 type: :object,
+                 properties: %{
+                   id: %{type: :uuid},
+                   name: %{type: :string, desc: "The name"}
+                 }
+               },
+               query_params: %{
+                 id: %{
+                   type: :string,
+                   maximum: 10,
+                   minimum: 0,
+                   required: false,
+                   default: 2
+                 },
+                 update: %{type: :boolean}
+               },
+               path_params: %{
+                 account_id: %{type: :uuid}
+               },
+               responses: %{
+                 200 => %{type: :ref, ref: User},
+                 201 => %{
+                   type: :list,
+                   of: [%{type: :ref, ref: User}]
+                 },
+                 404 => %{
+                   type: :object,
+                   properties: %{
+                     status: %{type: :integer},
+                     message: %{type: :string}
+                   }
+                 }
+               },
                metadata: %{public: true},
                tags: ["foo", "bar"]
              }
@@ -29,21 +67,13 @@ defmodule Rolodex.RouteTest do
          %{config: config} do
       result = Route.get_pipeline_config(%Router.Route{pipe_through: nil}, config)
 
-      assert result == %PipelineConfig{
-               body: %{},
-               headers: %{},
-               query_params: %{}
-             }
+      assert result == %PipelineConfig{}
     end
 
     test "It returns an empty Rolodex.PipelineConfig if there is no shared config defined" do
       result = Route.get_pipeline_config(%Router.Route{pipe_through: [:api]}, Config.new())
 
-      assert result == %PipelineConfig{
-               body: %{},
-               headers: %{},
-               query_params: %{}
-             }
+      assert result == %PipelineConfig{}
     end
 
     test "It collects all shared pipeline config data for all route pipe_throughs", %{
@@ -52,9 +82,17 @@ defmodule Rolodex.RouteTest do
       result = Route.get_pipeline_config(%Router.Route{pipe_through: [:api, :web]}, config)
 
       assert result == %PipelineConfig{
-               body: %{foo: :bar},
-               headers: %{foo: :bar},
-               query_params: %{"foo" => "bar", "zig" => "zag"}
+               headers: %{
+                 "X-Request-Id" => %{type: :uuid, required: true}
+               },
+               body: %{
+                 type: :object,
+                 properties: %{foo: %{type: :string}}
+               },
+               query_params: %{
+                 foo: %{type: :string},
+                 bar: %{type: :boolean}
+               }
              }
     end
   end
@@ -90,10 +128,43 @@ defmodule Rolodex.RouteTest do
 
       assert result == %Route{
                description: "It's a test!",
-               headers: %{foo: :bar},
-               body: %{foo: :bar},
-               query_params: %{"foo" => "bar"},
-               responses: %{200 => Rolodex.Mocks.User},
+               headers: %{
+                 "X-Request-Id" => %{type: :uuid, required: true}
+               },
+               body: %{
+                 type: :object,
+                 properties: %{
+                   id: %{type: :uuid},
+                   name: %{type: :string, desc: "The name"}
+                 }
+               },
+               query_params: %{
+                 id: %{
+                   type: :string,
+                   maximum: 10,
+                   minimum: 0,
+                   required: false,
+                   default: 2
+                 },
+                 update: %{type: :boolean}
+               },
+               path_params: %{
+                 account_id: %{type: :uuid}
+               },
+               responses: %{
+                 200 => %{type: :ref, ref: User},
+                 201 => %{
+                  type: :list,
+                  of: [%{type: :ref, ref: User}]
+                },
+                 404 => %{
+                   type: :object,
+                   properties: %{
+                     status: %{type: :integer},
+                     message: %{type: :string}
+                   }
+                 }
+               },
                metadata: %{public: true},
                tags: ["foo", "bar"],
                path: "/v2/test",
@@ -115,10 +186,46 @@ defmodule Rolodex.RouteTest do
 
       assert result == %Route{
                description: "It's a test!",
-               headers: %{foo: :bar},
-               body: %{foo: :bar},
-               query_params: %{"foo" => "bar", "zig" => "zag"},
-               responses: %{200 => Rolodex.Mocks.User},
+               headers: %{
+                 "X-Request-Id" => %{type: :uuid, required: true}
+               },
+               body: %{
+                 type: :object,
+                 properties: %{
+                   id: %{type: :uuid},
+                   name: %{type: :string, desc: "The name"},
+                   foo: %{type: :string}
+                 }
+               },
+               query_params: %{
+                 id: %{
+                   type: :string,
+                   maximum: 10,
+                   minimum: 0,
+                   required: false,
+                   default: 2
+                 },
+                 update: %{type: :boolean},
+                 foo: %{type: :string},
+                 bar: %{type: :boolean}
+               },
+               path_params: %{
+                 account_id: %{type: :uuid}
+               },
+               responses: %{
+                 200 => %{type: :ref, ref: User},
+                 201 => %{
+                  type: :list,
+                  of: [%{type: :ref, ref: User}]
+                },
+                 404 => %{
+                   type: :object,
+                   properties: %{
+                     status: %{type: :integer},
+                     message: %{type: :string}
+                   }
+                 }
+               },
                metadata: %{public: true},
                tags: ["foo", "bar"],
                path: "/v2/test",
@@ -139,7 +246,7 @@ defmodule Rolodex.RouteTest do
       }
 
       %Route{headers: headers} = Route.new(phoenix_route, config)
-      assert headers == %{foo: :baz}
+      assert headers == %{"X-Request-Id" => %{type: :string, required: true}}
     end
 
     test "It handles an undocumented route" do
@@ -171,13 +278,16 @@ defmodule Rolodex.RouteTest do
       Config.new(%{
         pipelines: %{
           api: %{
-            headers: %{foo: :bar},
-            query_params: %{"foo" => "bar"}
+            headers: %{"X-Request-Id" => %{type: :uuid, required: true}},
+            query_params: %{foo: :string}
           },
           web: %{
-            body: %{foo: :bar},
-            headers: %{foo: :bar},
-            query_params: %{"foo" => "bar", "zig" => "zag"}
+            body: %{
+              type: :object,
+              properties: %{foo: :string}
+            },
+            headers: %{"X-Request-Id" => %{type: :uuid, required: true}},
+            query_params: %{foo: :string, bar: :boolean}
           },
           socket: %{
             headers: %{bar: :baz}

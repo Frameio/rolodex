@@ -111,7 +111,11 @@ defmodule Rolodex do
     }
   """
 
-  alias Rolodex.{Config, Route, Utils}
+  alias Rolodex.{
+    Config,
+    Route,
+    Schema
+  }
 
   @doc """
   Runs Rolodex and writes out documentation JSON to the specified destination
@@ -169,33 +173,81 @@ defmodule Rolodex do
   end
 
   @doc """
-  Inspects the responses for reach `Rolodex.Route`. For any response that is a
-  `Rolodex.Object`, we resolve the schema mappings into the final result.
+  Inspects the request and response parameter data for reach `Rolodex.Route`.
+  From these routes, collect a unique list of `Rolodex.Schema` references, and
+  serialize each via `Rolodex.Schema.to_map/1`. The serialized schemas will be
+  passed along to a `Rolodex.Processor` behaviour.
   """
   @spec generate_schemas([Rolodex.Route.t()]) :: map()
   def generate_schemas(routes) do
     routes
     |> Flow.from_enumerable()
-    |> Flow.reduce(fn -> %{} end, fn %Route{responses: responses}, acc ->
-      Enum.reduce(responses, acc, &generate_schema/2)
-    end)
+    |> Flow.reduce(fn -> %{} end, &schemas_for_route/2)
     |> Map.new()
   end
 
-  defp generate_schema({_, mod}, refs) do
-    case Utils.can_generate_schema?(mod) && !Map.has_key?(refs, mod) do
-      true -> generate_schema(mod, refs)
-      false -> refs
+  defp schemas_for_route(route, schemas) do
+    unserialized_refs_for_route(route, schemas)
+    |> Enum.reduce(schemas, fn ref, acc ->
+      Map.put(acc, ref, Schema.to_map(ref))
+    end)
+  end
+
+  # Looks at the route fields where users can provide `Rolodex.Schema` refs
+  # that we now need to serialize. Performs a DFS on each field to collect any
+  # unserialized schema refs. We look at both the refs in the maps of data, PLUS
+  # refs nested within the schemas themselves. We recursively traverse this graph
+  # until we've collected all unseen refs for the current context.
+  defp unserialized_refs_for_route(
+         %Route{
+           body: body,
+           headers: header,
+           path_params: path,
+           query_params: query,
+           responses: responses
+         },
+         schemas
+       ) do
+    # List of already serialized Rolodex.Schema refs in the route
+    serialized_refs = Map.keys(schemas)
+
+    [body, header, path, query, responses]
+    |> Enum.reduce(MapSet.new(), &collect_unserialized_refs(&1, &2, serialized_refs))
+    |> Enum.to_list()
+  end
+
+  defp collect_unserialized_refs(field, result, serialized_refs) when is_map(field) do
+    field
+    |> Schema.get_refs()
+    |> Enum.reduce(result, &collect_ref(&1, &2, serialized_refs))
+  end
+
+  defp collect_unserialized_refs(ref, result, serialized_refs) when is_atom(ref) do
+    case Schema.is_schema_module?(ref) do
+      true ->
+        ref
+        |> Schema.get_refs()
+        |> Enum.reduce(result, &collect_ref(&1, &2, serialized_refs))
+
+      false ->
+        result
     end
   end
 
-  defp generate_schema(mod, refs) do
-    refs = Map.put(refs, mod, mod.to_schema_map())
+  defp collect_unserialized_refs(_, acc, _), do: acc
 
-    # Ensure we also collect any nested objects
-    mod.nested_objects()
-    |> Enum.reduce(refs, fn nested, acc ->
-      Map.put_new(acc, nested, nested.to_schema_map())
-    end)
+  # If the current schema ref is unserialized, add to the MapSet of unserialized
+  # refs, and then continue the recursive traversal
+  defp collect_ref(ref, result, serialized_refs) do
+    seen_refs = Enum.to_list(result) ++ serialized_refs
+
+    case ref in seen_refs do
+      true ->
+        result
+
+      false ->
+        result = MapSet.put(result, ref)
+        collect_unserialized_refs(ref, result, serialized_refs)
+    end
   end
 end
