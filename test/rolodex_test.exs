@@ -148,17 +148,17 @@ defmodule RolodexTest do
                          }
                        },
                        "201" => %{
-                        "content" => %{
-                          "application/json" => %{
-                            "schema" => %{
-                              "type" => "array",
-                              "items" => %{
-                                "$ref" => "#/components/schemas/User"
-                              }
-                            }
-                          }
-                        }
-                      },
+                         "content" => %{
+                           "application/json" => %{
+                             "schema" => %{
+                               "type" => "array",
+                               "items" => %{
+                                 "$ref" => "#/components/schemas/User"
+                               }
+                             }
+                           }
+                         }
+                       },
                        "404" => %{
                          "content" => %{
                            "application/json" => %{
@@ -239,9 +239,9 @@ defmodule RolodexTest do
                responses: %{
                  200 => %{type: :ref, ref: User},
                  201 => %{
-                  type: :list,
-                  of: [%{type: :ref, ref: User}]
-                },
+                   type: :list,
+                   of: [%{type: :ref, ref: User}]
+                 },
                  404 => %{
                    type: :object,
                    properties: %{

@@ -148,25 +148,25 @@ defmodule Rolodex.SchemaTest do
       field = Schema.new_field(id: :uuid, name: :string, nested: User)
 
       assert field == %{
-        type: :object,
-        properties: %{
-          id: %{type: :uuid},
-          name: %{type: :string},
-          nested: %{type: :ref, ref: User}
-        }
-      }
+               type: :object,
+               properties: %{
+                 id: %{type: :uuid},
+                 name: %{type: :string},
+                 nested: %{type: :ref, ref: User}
+               }
+             }
     end
 
     test "It handles list shorthand" do
       field = Schema.new_field([:uuid, User])
 
       assert field == %{
-        type: :list,
-        of: [
-          %{type: :uuid},
-          %{type: :ref, ref: User}
-        ]
-      }
+               type: :list,
+               of: [
+                 %{type: :uuid},
+                 %{type: :ref, ref: User}
+               ]
+             }
     end
   end
 

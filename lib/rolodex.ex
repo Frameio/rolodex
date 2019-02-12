@@ -117,6 +117,8 @@ defmodule Rolodex do
     Schema
   }
 
+  @route_fields_with_schemas [:body, :headers, :path_params, :query_params, :responses]
+
   @doc """
   Runs Rolodex and writes out documentation JSON to the specified destination
   """
@@ -173,10 +175,10 @@ defmodule Rolodex do
   end
 
   @doc """
-  Inspects the request and response parameter data for reach `Rolodex.Route`.
-  From these routes, collect a unique list of `Rolodex.Schema` references, and
-  serialize each via `Rolodex.Schema.to_map/1`. The serialized schemas will be
-  passed along to a `Rolodex.Processor` behaviour.
+  Inspects the request and response parameter data for each `Rolodex.Route`.
+  From these routes, it collects a unique list of `Rolodex.Schema` references,
+  and serializes each via `Rolodex.Schema.to_map/1`. The serialized schemas will
+  be passed along to a `Rolodex.Processor` behaviour.
   """
   @spec generate_schemas([Rolodex.Route.t()]) :: map()
   def generate_schemas(routes) do
@@ -194,25 +196,19 @@ defmodule Rolodex do
   end
 
   # Looks at the route fields where users can provide `Rolodex.Schema` refs
-  # that we now need to serialize. Performs a DFS on each field to collect any
+  # that it now needs to serialize. Performs a DFS on each field to collect any
   # unserialized schema refs. We look at both the refs in the maps of data, PLUS
   # refs nested within the schemas themselves. We recursively traverse this graph
   # until we've collected all unseen refs for the current context.
-  defp unserialized_refs_for_route(
-         %Route{
-           body: body,
-           headers: header,
-           path_params: path,
-           query_params: query,
-           responses: responses
-         },
-         schemas
-       ) do
+  defp unserialized_refs_for_route(route, schemas) do
     # List of already serialized Rolodex.Schema refs in the route
     serialized_refs = Map.keys(schemas)
 
-    [body, header, path, query, responses]
-    |> Enum.reduce(MapSet.new(), &collect_unserialized_refs(&1, &2, serialized_refs))
+    route
+    |> Map.take(@route_fields_with_schemas)
+    |> Enum.reduce(MapSet.new(), fn {_, field}, acc ->
+      collect_unserialized_refs(field, acc, serialized_refs)
+    end)
     |> Enum.to_list()
   end
 

@@ -63,7 +63,7 @@ defmodule Rolodex.Processors.Swagger do
     end)
   end
 
-  defp process_route(%Route{} = route) do
+  defp process_route(route) do
     %{
       # Swagger prefers `summary` for short, one-line descriptions of a route,
       # whereas `description` is meant for multi-line markdown explainers.
@@ -71,8 +71,8 @@ defmodule Rolodex.Processors.Swagger do
       # TODO(billyc): we could support both?
       summary: route.description,
       parameters: process_params(route),
-      requestBody: process_body(route.body),
-      responses: process_responses(route.responses)
+      requestBody: process_body(route),
+      responses: process_responses(route)
     }
   end
 
@@ -93,11 +93,12 @@ defmodule Rolodex.Processors.Swagger do
     }
   end
 
-  defp process_body(body) when map_size(body) == 0, do: body
+  defp process_body(%Route{body: body}) when map_size(body) == 0, do: body
 
-  defp process_body(body) do
+  defp process_body(%Route{body: body}) do
     %{
       content: %{
+        # TODO(billyc): content type shouldn't be hard-code; should be configurable
         "application/json" => %{
           schema: process_schema_field(body)
         }
@@ -105,9 +106,9 @@ defmodule Rolodex.Processors.Swagger do
     }
   end
 
-  defp process_responses(response) when map_size(response) == 0, do: response
+  defp process_responses(%Route{responses: responses}) when map_size(responses) == 0, do: responses
 
-  defp process_responses(responses) do
+  defp process_responses(%Route{responses: responses}) do
     responses
     |> Map.new(fn
       {status_code, :ok} ->
@@ -116,6 +117,7 @@ defmodule Rolodex.Processors.Swagger do
       {status_code, response} ->
         response_data = %{
           content: %{
+            # TODO(billyc): content type shouldn't be hard-code; should be configurable
             "application/json" => %{
               schema: process_schema_field(response)
             }

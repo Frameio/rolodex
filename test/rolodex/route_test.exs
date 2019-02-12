@@ -154,9 +154,9 @@ defmodule Rolodex.RouteTest do
                responses: %{
                  200 => %{type: :ref, ref: User},
                  201 => %{
-                  type: :list,
-                  of: [%{type: :ref, ref: User}]
-                },
+                   type: :list,
+                   of: [%{type: :ref, ref: User}]
+                 },
                  404 => %{
                    type: :object,
                    properties: %{
@@ -215,9 +215,9 @@ defmodule Rolodex.RouteTest do
                responses: %{
                  200 => %{type: :ref, ref: User},
                  201 => %{
-                  type: :list,
-                  of: [%{type: :ref, ref: User}]
-                },
+                   type: :list,
+                   of: [%{type: :ref, ref: User}]
+                 },
                  404 => %{
                    type: :object,
                    properties: %{
