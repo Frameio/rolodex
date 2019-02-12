@@ -8,16 +8,17 @@ defmodule Rolodex.Config do
   ## Options
 
   - `description` (required) - Description for your documentation output
-  - `router` (required) - Phoenix Router module to inspect
+  - `router` (required) - `Phoenix.Router` module to inspect
   - `title` (required) - Title for your documentation output
   - `version` (required) - Your documentation's version
   - `filter` (default: `:none`) - TODO
-  - `locale` (default: `"en"`) - Locale key to use when processing controller
-  - `pipelines` (default: `%{}`) - Map of `Rolodex.PipelineConfig`s
+  - `locale` (default: `"en"`) - Locale key to use when processing descriptions
+  - `pipelines` (default: `%{}`) - Map of pipeline configs. Used to set default
+  parameter values for all routes in a pipeline. See `Rolodex.PipelineConfig`.
   - `processor` (default: `Rolodex.Processors.Swagger`) - Module implementing
-  the Rolodex.Processor behaviour
-  - `writer` (default: `%{file_path: "", writer: Rolodex.Writers.FileWriter`) - Map
-  action descriptions
+  the `Rolodex.Processor` behaviour
+  - `writer` (default: `%{file_path: "", writer: Rolodex.Writers.FileWriter`) - Destination
+  for writing and a module implementing the `Rolodex.Writer` behaviour
 
   ## Example
 
@@ -33,7 +34,7 @@ defmodule Rolodex.Config do
       },
       pipelines: %{
         api: %{
-          headers: %{auth: true}
+          headers: %{"X-Request-Id" => :uuid}
         }
       }
 
@@ -94,14 +95,15 @@ defmodule Rolodex.PipelineConfig do
 
   - `body` (default: `%{}`)
   - `headers` (default: `%{}`)
+  - `path_params` (default: `%{}`)
   - `query_params` (default: `%{}`)
 
   ## Example
 
     %Rolodex.PipelineConfig{
-      body: %{foo: :bar},
-      headers: %{bar: :baz},
-      query_params: %{foo: :bar}
+      body: %{id: :uuid, name: :string}
+      headers: %{"X-Request-Id" => :uuid},
+      query_params: %{account_id: :uuid}
     }
   """
 

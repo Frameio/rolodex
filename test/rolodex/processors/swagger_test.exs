@@ -12,7 +12,7 @@ defmodule Rolodex.Processors.SwaggerTest do
 
       routes = [
         %Route{
-          description: "It does a thing",
+          desc: "It does a thing",
           path: "/foo",
           verb: :get,
           body: %{
@@ -143,7 +143,7 @@ defmodule Rolodex.Processors.SwaggerTest do
     test "It takes a list of routes and schemas and returns a formatted map" do
       routes = [
         %Route{
-          description: "It does a thing",
+          desc: "It does a thing",
           headers: %{
             "X-Request-Id" => %{type: :uuid, required: true}
           },
@@ -270,19 +270,19 @@ defmodule Rolodex.Processors.SwaggerTest do
         %Route{
           path: "/foo",
           verb: :get,
-          description: "GET /foo",
+          desc: "GET /foo",
           responses: %{200 => %{type: :ref, ref: User}}
         },
         %Route{
           path: "/foo/:id",
           verb: :get,
-          description: "GET /foo/{id}",
+          desc: "GET /foo/{id}",
           responses: %{200 => %{type: :ref, ref: User}}
         },
         %Route{
           path: "/foo/:id",
           verb: :post,
-          description: "POST /foo/{id}",
+          desc: "POST /foo/{id}",
           responses: %{200 => %{type: :ref, ref: User}}
         }
       ]

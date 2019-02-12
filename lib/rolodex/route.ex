@@ -1,43 +1,303 @@
 defmodule Rolodex.Route do
   @moduledoc """
-  Logic to transform a `Phoenix.Router.Route` into metadata for a
-  `Rolodex.Processor` to handle. It will look for any @doc annotations attached
-  to the Phoenix Controller action and use those to build the result. It also
-  uses the `Rolodex.Config` data provided to resolve shared params for pipelines
-  and fetch locale-based descriptions.
+  Collects metadata associated with an API route. `new/2` takes in a
+  `Phoenix.Router.Route`, finds the controller action function associated with
+  the route, and collects metadata set in the `@doc` annotations for the function.
 
-  This module isn't intended to be invoked directly, but instead via the steps
-  encapsulated in `Rolodex.generate_routes/1`.
+  ## Route Annotations
 
-  ## Example
+  Details about all the valid annotations that `new/2` will look for. Each one has
+  a default, so they each can be omitted if not needed for the current route.
 
-    ## Your controller
-    defmodule MyController do
+  **`desc`**
+
+  Default: `""`
+
+  Set via an `@doc` comment
+
       @doc [
-        headers: %{foo: :bar},
-        body: %{foo: :bar},
-        query_params: %{"foo" => "bar"},
-        responses: %{200 => MyResponse},
-        metadata: %{public: true},
-        tags: ["foo", "bar"]
+        # Other annotations here
       ]
-      @doc "My index action"
-      def index(conn, _), do: conn
-    end
+      @doc "My route description"
+      def route(_, _), do: nil
 
-    ## Will become
-    %Rolodex.Route{
-      description: "My index action",
-      headers: %{foo: :bar},
-      body: %{foo: :bar},
-      query_params: %{"foo" => "bar"},
-      responses: %{200 => MyResponse},
-      metadata: %{public: true},
-      tags: ["foo", "bar"],
-      path: <from-phoenix-route>
-      pipe_through: <from-phoenix-route>
-      verb: <from-phoenix-route>
-    }
+  **`body`**
+
+  Default: `%{}`
+
+  Request body parameters. Valid inputs: `Rolodex.Schema`, a map, or a list.
+
+      @doc [
+        # A request body defined via a reusable schema
+        body: SomeSchema,
+
+        # Request body is a JSON object with two parameters: `id` and `name`
+        body: %{id: :uuid, name: :string},
+        body: [id: :uuid, name: :string],
+
+        # Same as above, but here the top-level data structure `type` is specified
+        # so that we can add `desc` metadata to it
+        body: %{
+          type: :object,
+          desc: "The request body",
+          properties: %{id: :uuid}
+        },
+        body: [
+          type: :object,
+          desc: "The request body",
+          properties: [id: :uuid]
+        ],
+
+        # Request body is a JSON array of strings
+        body: [:string],
+
+        # Same as above, but here the top-level data structure `type` is specified
+        body: %{type: :list, of: [:string]},
+        body: [type: :list, of: [:string]],
+
+        # All together
+        body: [
+          id: :uuid,
+          name: [type: :string, desc: "The name"],
+          ages: [:number]
+        ]
+      ]
+
+  **`headers`**
+
+  Default: `%{}`
+
+  Request headers. Valid input is a map or keyword list, where each key is a
+  header name and each value is a description of the value in the form of a
+  `Rolodex.Schema`, an atom, a map, or a list.
+
+  Each header value can also specify the following: `minimum` (default: `nil`),
+  `maximum` (default: `nil`), default (default: `nil`), and required (default: `required`).
+
+      @doc [
+        # Simplest header description: a name with a concrete type
+        headers: %{"X-Request-ID" => :uuid},
+        headers: ["X-Request-ID": :uuid],
+
+        # Specifying metadata for the header value
+        headers: %{
+          "X-Request-ID" => %{
+            type: :integer,
+            required: true,
+            minimum: 0,
+            maximum: 10,
+            default: 0
+          }
+        },
+        headers: [
+          "X-Request-ID": [
+            type: :integer,
+            required: true,
+            minimum: 0,
+            maximum: 10,
+            default: 0
+          ]
+        ],
+
+        # Multiple header values. Maybe some of the have nested attributes too
+        headers: [
+          "X-Request-ID": :uuid,
+          "Custom-Data": [
+            id: :uuid,
+            checksum: :string
+          ],
+          "Header-Via-Schema": MyHeaderSchema
+        ]
+      ]
+
+  **`path_params`**
+
+  Default: `%{}`
+
+  Parameters in the route path. Valid input is a map or keyword list, where each
+  key is a path parameter name and each value is a description of the value in the
+  form of a `Rolodex.Schema`, an atom, a map, or a list.
+
+  Each parameter value can also specify the following: `minimum` (default: `nil`),
+  `maximum` (default: `nil`), default (default: `nil`), and required (default: `required`).
+
+      @doc [
+        # Simplest path parameter description: a name with a concrete type
+        path_params: %{id: :uuid},
+        path_params: [id: :uuid],
+
+        # Specifying metadata for the path value
+        path_params: %{
+          id: %{
+            type: :integer,
+            required: true,
+            minimum: 0,
+            maximum: 10,
+            default: 0
+          }
+        },
+        path_params: [
+          id: [
+            type: :integer,
+            required: true,
+            minimum: 0,
+            maximum: 10,
+            default: 0
+          ]
+        ]
+      ]
+
+  **`query_params`**
+
+  Default: `%{}`
+
+  Query parameters. Valid input is a map or keyword list, where each key is a
+  query parameter name and each value is a description of the value in the form
+  of a `Rolodex.Schema`, an atom, a map, or a list.
+
+  Each query value can also specify the following: `minimum` (default: `nil`),
+  `maximum` (default: `nil`), default (default: `nil`), and required (default: `required`).
+
+      @doc [
+        # Simplest query parameter description: a name with a concrete type
+        query_params: %{id: :uuid},
+        query_params: [id: :uuid],
+
+        # Specifying metadata for the parameter value
+        query_params: %{
+          id: %{
+            type: :integer,
+            required: true,
+            minimum: 0,
+            maximum: 10,
+            default: 0
+          }
+        },
+        query_params: [
+          id: [
+            type: :integer,
+            required: true,
+            minimum: 0,
+            maximum: 10,
+            default: 0
+          ]
+        ],
+
+        # Multiple query values. Maybe some of the have nested attributes too
+        query_params: [
+          id: :uuid,
+          some_object: [
+            id: :uuid,
+            checksum: :string
+          ],
+          via_schema: QueryParamSchema
+        ]
+      ]
+
+  **`responses`**
+
+  Default: `%{}`
+
+  Response(s) for the route action. Valid input is a map or keyword list, where
+  each key is a response code and each value is a description of the response in
+  the form of a `Rolodex.Schema`, an atom, a map, or a list.
+
+      @doc [
+        responses: %{
+          # A response defined via a reusable schema
+          200 => MyResponseSchema,
+
+          # Use `:ok` for simple success responses
+          200 => :ok,
+
+          # Response is a JSON object with two parameters: `id` and `name`
+          200 => %{id: :uuid, name: :string},
+          200 => [id: :uuid, name: :string],
+
+          # Same as above, but here the top-level data structure `type` is specified
+          # so that we can add `desc` metadata to it
+          200 => %{
+            type: :object,
+            desc: "The response body",
+            properties: %{id: :uuid}
+          },
+          200 => [
+            type: :object,
+            desc: "The response body",
+            properties: [id: :uuid]
+          ],
+
+          # Response is a JSON array of a schema
+          200 => [MyResponseSchema],
+
+          # Same as above, but here the top-level data structure `type` is specified
+          200 => %{type: :list, of: [MyResponseSchema]},
+          200 => [type: :list, of: [MyResponseSchema]],
+
+          # Response is one of multiple possible results
+          200 => %{type: :one_of, of: [MyResponseSchema, OtherSchema]},
+          200 => [type: :one_of, of: [MyResponseSchema, OtherSchema]],
+        }
+      ]
+
+  **`metadata`**
+
+  Default: `%{}`
+
+  Any metadata for the route. Valid input is a map or keyword list.
+
+  **`tags`**
+
+  Default: `[]`
+
+  Route tags. Valid input is a list of strings.
+
+  ## Handling Route Pipelines
+
+  In your `Rolodex.Config`, you can specify shared route parameters for your
+  Phoenix pipelines. For each route, if it is part of a pipeline, `new/2` will
+  merge in shared pipeline config data into the route metadata
+
+      # Your Phoenix router
+      defmodule MyRouter do
+        pipeline :api do
+          plug MyPlug
+        end
+
+        scope "/api" do
+          pipe_through [:api]
+
+          get "/test", MyController, :index
+        end
+      end
+
+      # Your controller
+      defmodule MyController do
+        @doc [
+          headers: ["X-Request-ID": uuid],
+          responses: %{200 => :ok}
+        ]
+        @doc "My index action"
+        def index(conn, _), do: conn
+      end
+
+      # Your config
+      config = %Rolodex.Config{
+        pipelines: %{
+          api: %{
+            headers: %{"Shared-Header" => :string}
+          }
+        }
+      }
+
+      # Parsed route
+      %Rolodex.Route{
+        headers: %{
+          "X-Request-ID" => %{type: :uuid},
+          "Shared-Header" => %{type: :string}
+        },
+        responses: %{200 => :ok}
+      }
   """
 
   alias Phoenix.Router
@@ -52,7 +312,7 @@ defmodule Rolodex.Route do
     :path,
     :verb,
     body: %{},
-    description: "",
+    desc: "",
     headers: %{},
     metadata: %{},
     path_params: %{},
@@ -62,9 +322,11 @@ defmodule Rolodex.Route do
     tags: []
   ]
 
+  @phoenix_route_params [:path, :pipe_through, :verb]
+
   @type t :: %__MODULE__{
           body: map(),
-          description: binary(),
+          desc: binary(),
           headers: %{},
           metadata: %{},
           path: binary(),
@@ -77,54 +339,28 @@ defmodule Rolodex.Route do
         }
 
   @doc """
-  Generates a new `Rolodex.Route` from a Phoenix Route struct and any
-  `Rolodex.Config` data.
+  Looks up a `Phoenix.Router.Route` controller action function, parses any
+  doc annotations, and returns as a struct.
   """
   @spec new(Phoenix.Router.Route.t(), Rolodex.Config.t()) :: Rolodex.Route.t()
   def new(phoenix_route, config) do
-    # Get docs defined with the route controller action
-    {action_description, action_metadata} = fetch_route_docs(phoenix_route)
+    action_doc_data = fetch_route_docs(phoenix_route, config)
+    pipeline_config = fetch_pipeline_config(phoenix_route, config)
 
-    # Get shared params for any route pipelines
-    pipeline_config = get_pipeline_config(phoenix_route, config)
-
-    # Merge it all together against base params from the Phoenix.Router.Route
-    data =
-      phoenix_route
-      |> Map.take([:path, :pipe_through, :verb])
-      |> deep_merge(Map.from_struct(pipeline_config))
-      |> deep_merge(action_metadata)
-      |> Map.put(:description, parse_description(action_description, config))
-
-    struct(__MODULE__, data)
+    phoenix_route
+    |> Map.take(@phoenix_route_params)
+    |> deep_merge(Map.from_struct(pipeline_config))
+    |> deep_merge(action_doc_data)
+    |> to_struct()
   end
 
-  @doc """
-  Takes a Phoenix Route struct and uses `Code.fetch_docs/1` to lookup the
-  docs for the route's controller action. Returns only the description and doc
-  metadata that are used to build the `Rolodex.Route.t()` result.
+  defp to_struct(data), do: struct(__MODULE__, data)
 
-  ## Example
-
-    defmodule MyController do
-      @doc [
-        headers: %{foo: :bar},
-        metadata: %{foo: :bar}
-      ]
-      @doc "My index action"
-      def index(conn, _), do: conn
-    end
-
-    iex> Rolodex.Route.fetch_route_docs(%Phoenix.Router.Route{plug: MyController, opts: :index})
-    {
-      %{"en" => "My index action"},
-      %{headers: %{foo: :bar}, metadata: %{foo: :bar}}
-    }
-  """
-  @spec fetch_route_docs(Phoenix.Router.Route.t()) :: {map() | atom() | binary(), map()}
-  def fetch_route_docs(%Router.Route{plug: plug, opts: action}) do
+  # Uses `Code.fetch_docs/1` to lookup `@doc` annotations for the controller action
+  defp fetch_route_docs(%Router.Route{plug: plug, opts: action}, config) do
     {_, _, _, desc, metadata} =
-      Code.fetch_docs(plug)
+      plug
+      |> Code.fetch_docs()
       |> Tuple.to_list()
       |> Enum.at(-1)
       |> Enum.find(fn
@@ -132,7 +368,9 @@ defmodule Rolodex.Route do
         _ -> false
       end)
 
-    {desc, parse_param_fields(metadata)}
+    metadata
+    |> parse_param_fields()
+    |> Map.put(:desc, parse_description(desc, config))
   end
 
   defp parse_param_fields(metadata) do
@@ -156,27 +394,21 @@ defmodule Rolodex.Route do
     end)
   end
 
-  @doc """
-  Builds shared `Rolodex.PipelineConfig` data for the given route. The config
-  result will be empty if the route is not piped through any router pipelines or
-  if there is no shared pipelines data in your `Rolodex.Config`.
+  defp parse_description(:none, _), do: ""
 
-  ## Example
+  defp parse_description(description, %Config{locale: locale}) when is_map(description) do
+    Map.get(description, locale, "")
+  end
 
-    iex> router = %Phoenix.Router.Route{pipe_through: [:api]}
-    iex> config = %Rolodex.Config{pipelines: %{api: %{headers: %{foo: :bar}}}}
+  defp parse_description(description, _), do: description
 
-    iex> Rolodex.Route.get_pipeline_config(router, config)
-    %Rolodex.PipelineConfig{body: %{}, headers: %{foo: :bar}, query_params: %{}}
-  """
-  @spec get_pipeline_config(Phoenix.Router.Route.t(), Rolodex.Config.t()) ::
-          Rolodex.PipelineConfig.t()
-  def get_pipeline_config(phoenix_route, rolodex_config)
+  # Builds shared `Rolodex.PipelineConfig` data for the given route. The config
+  # result will be empty if the route is not piped through any router pipelines or
+  # if there is no shared pipelines data in `Rolodex.Config`.
+  defp fetch_pipeline_config(%Router.Route{pipe_through: nil}, _), do: PipelineConfig.new()
+  defp fetch_pipeline_config(_, %Config{pipelines: nil}), do: PipelineConfig.new()
 
-  def get_pipeline_config(%Router.Route{pipe_through: nil}, _), do: PipelineConfig.new()
-  def get_pipeline_config(_, %Config{pipelines: nil}), do: PipelineConfig.new()
-
-  def get_pipeline_config(%Router.Route{pipe_through: pipe_through}, %Config{pipelines: pipelines}) do
+  defp fetch_pipeline_config(%Router.Route{pipe_through: pipe_through}, %Config{pipelines: pipelines}) do
     Enum.reduce(pipe_through, PipelineConfig.new(), fn pt, acc ->
       pipeline_config =
         pipelines
@@ -187,22 +419,6 @@ defmodule Rolodex.Route do
       deep_merge(acc, pipeline_config)
     end)
   end
-
-  @doc """
-  Takes function description metadata and returns a string. When the metadata is
-  a map keyed by locale, it uses the locale set in `Rolodex.Config` to determine
-  which description string to return.
-  """
-  @spec parse_description(atom() | map() | binary(), Rolodex.Config.t()) :: binary()
-  def parse_description(description, config)
-
-  def parse_description(:none, _), do: ""
-
-  def parse_description(description, %Config{locale: locale}) when is_map(description) do
-    Map.get(description, locale, "")
-  end
-
-  def parse_description(description, _), do: description
 
   defp deep_merge(left, right), do: Map.merge(left, right, &deep_resolve/3)
   defp deep_resolve(_key, left = %{}, right = %{}), do: deep_merge(left, right)

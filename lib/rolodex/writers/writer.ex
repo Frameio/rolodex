@@ -4,17 +4,17 @@ defmodule Rolodex.Writer do
   """
 
   @doc """
-  Should implement a way to write to a process.
+  Should implement a way to write to a `IO.device()`.
   """
   @callback write(IO.device(), String.t()) :: :ok
 
   @doc """
-  Returns a io_device that you can write to.
+  Returns an open `IO.device()` for writing.
   """
   @callback init(Rolodex.Config.t()) :: {:ok, IO.device()} | {:error, any}
 
   @doc """
-  Closes the given pid
+  Closes the given `IO.device()`.
   """
   @callback close(IO.device()) :: :ok | {:error, any}
 end
