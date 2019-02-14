@@ -1,11 +1,20 @@
 # Rolodex
 
-**TODO: Add description**
+Rolodex generates documentation for your Phoenix API.
+
+Simply annotate your Phoenix controller action functions with `@doc` metadata, and Rolodex will turn these descriptions into valid documentation for any platform.
+
+Currently supports:
+- [OpenAPI 3.0](https://swagger.io/specification/)
+
+## Documentation
+
+See [https://hexdocs.pm/rolodex](https://hexdocs.pm/rolodex)
 
 ## Installation
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `rolodex` to your list of dependencies in `mix.exs`:
+Rolodex is [available in Hex](https://hex.pm/packages/rolodex). Add it to your
+deps in `mix.exs`:
 
 ```elixir
 def deps do
@@ -14,8 +23,3 @@ def deps do
   ]
 end
 ```
-
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at [https://hexdocs.pm/rolodex](https://hexdocs.pm/rolodex).
-

@@ -217,7 +217,7 @@ defmodule RolodexTest do
                    name: %{type: :string, desc: "The name"}
                  }
                },
-               description: "It's a test!",
+               desc: "It's a test!",
                headers: %{
                  "X-Request-Id" => %{type: :uuid, required: true}
                },
@@ -255,7 +255,7 @@ defmodule RolodexTest do
              }
 
       assert result |> Enum.at(1) == %Route{
-               description: "",
+               desc: "",
                headers: %{
                  "X-Request-Id" => %{type: :string}
                },

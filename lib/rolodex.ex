@@ -1,114 +1,162 @@
 defmodule Rolodex do
   @moduledoc """
-  Rolodex inspects a Phoenix Router and transforms @doc annotations on your
-  controller actions into a JSON blob of documentation in the format of your
-  choice.
+  Rolodex generates documentation for your Phoenix API.
 
-  `Rolodex.run/1` encapsulates the full doc generation process. When run, it
-  will:
+  Rolodex inspects a Phoenix Router and transforms the `@doc` annotations on your
+  controller actions into documentation data in the format of your choosing.
+
+  `Rolodex.run/1` encapsulates the full documentation generation process. When
+  invoked, it will:
 
   1) Traverse your Phoenix Router
-  2) Collect route documentation for all controller actions
-  3) Resolve the shape of the action responses
-  4) Combine these pieces with project metadata into a data format of your
-  choosing (e.g. Swagger OpenAPI)
-  4) Encode the blob into a JSON string
-  5) And finally, write it out to the destination of your choosing.
+  2) Collect documentation data for the API endpoints exposed by your router
+  3) Serialize the data into a format of your choosing (e.g. Swagger JSON)
+  4) Write the serialized data out to a destination of your choosing.
 
-  See `Rolodex.Config` for more information about how to configure Rolodex doc
-  generation.
+  Rolodex can be configured in the `config/` files for your Phoenix project. See
+  `Rolodex.Config` for more details on configuration options.
 
-  ## A high level example
+  ## Features and resources
 
-    # Your Phoenix router
-    defmodule MyRouter do
-      pipeline :api do
-        plug MyPlug
+  - **Reusable parameter schemas** - See `Rolodex.Schema` for details on how to
+  write reusable schemas for request and response parameters in your API.
+  - **Structured annotations** - See `Rolodex.Route` for details on how to format
+  annotations on your API route action functions for the Rolodex parser to handle
+  - **Generic serialization** - The `Rolodex.Processor` behaviour encapsulates
+  the basic steps needed to serialize API metadata into documentation. Rolodex
+  ships with a valid Swagger JSON processor (see: `Rolodex.Processors.Swagger`)
+  - **Generic writing** - The `Rolodex.Writer` behaviour encapsulates the basic
+  steps needed to write out formatted docs. Rolodex ships with a file writer (
+  see: `Rolodex.Writers.FileWriter`)
+
+  ## High level example
+
+      # Your Phoenix router
+      defmodule MyRouter do
+        pipeline :api do
+          plug MyPlug
+        end
+
+        scope "/api" do
+          pipe_through [:api]
+
+          get "/test", MyController, :index
+        end
       end
 
-      scope "/api" do
-        pipe_through [:api]
-
-        get "/test", MyController, :index
+      # Your controller
+      defmodule MyController do
+        @doc [
+          headers: ["X-Request-ID": uuid],
+          body: [id: :uuid],
+          query_params: [include: :string],
+          path_params: [user_id: :uuid],
+          responses: %{200 => MyResponse},
+          metadata: [public: true],
+          tags: ["foo", "bar"]
+        ]
+        @doc "My index action"
+        def index(conn, _), do: conn
       end
-    end
 
-    # Your controller
-    defmodule MyController do
-      @doc [
-        headers: %{foo: :bar},
-        body: %{foo: :bar},
-        query_params: %{"foo" => "bar"},
-        responses: %{200 => MyResponse},
-        metadata: %{public: true},
-        tags: ["foo", "bar"]
-      ]
-      @doc "My index action"
-      def index(conn, _), do: conn
-    end
+      # Your response schema
+      defmodule MyResponse do
+        use Rolodex.Schema
 
-    # Your response schema
-    defmodule MyResponse do
-      object "MyResponse", type: :schema, desc: "A response" do
-        field(:id, :uuid)
-        field(:name, :string, desc: "The response name")
+        schema "MyResponse", desc: "A response" do
+          field :id, :uuid
+          field :name, :string, desc: "The response name"
+        end
       end
-    end
 
-    # In mix.exs
-    config :rolodex,
-      title: "MyApp",
-      description: "An example",
-      version: "1.0.0",
-      router: MyRouter,
-      pipelines: %{
-        api: %{
-          headers: %{auth: true}
-        }
-      }
+      # In mix.exs
+      config :rolodex,
+        title: "MyApp",
+        description: "An example",
+        version: "1.0.0",
+        router: MyRouter,
+        pipelines: [
+          api: [
+            headers: ["Include-Meta": :boolean]
+          ]
+        ]
 
-    # Then...
-    Application.get_all_env(:rolodex)
-    |> Rolodex.Config.new()
-    |> Rolodex.run()
+      # Then...
+      Application.get_all_env(:rolodex)
+      |> Rolodex.Config.new()
+      |> Rolodex.run()
 
-    # The JSON written out to file should look like
-    %{
-      "openapi" => "3.0.0",
-      "info" => %{
-        "title" => "MyApp",
-        "description" => "An example",
-        "version" => "1.0.0"
-      },
-      "paths" => %{
-        "/api/test" => %{
-          "get" => %{
-            "headers" => %{"auth" => true, "foo" => "bar"},
-            "body" => %{"foo" => "bar"},
-            "query_params" => %{"foo" => "bar"},
-            "responses" => %{
-              "200" => %{
-                "ref" => "#/components/schemas/MyResponse"
-              }
-            },
-            "metadata" => %{"public" => true},
-            "tags" => ["foo", "bar"]
+      # The JSON written out to file should look like
+      %{
+        "openapi" => "3.0.0",
+        "info" => %{
+          "title" => "MyApp",
+          "description" => "An example",
+          "version" => "1.0.0"
+        },
+        "paths" => %{
+          "/api/test" => %{
+            "get" => %{
+              "metadata" => %{"public" => true},
+              "parameters" => [
+                %{
+                  "in" => "header",
+                  "name" => "X-Request-ID",
+                  "schema" => %{
+                    "type" => "string",
+                    "format" => "uuid"
+                  }
+                },
+                %{
+                  "in" => "path",
+                  "name" => "user_id",
+                  "schema" => %{
+                    "type" => "string",
+                    "format" => "uuid"
+                  }
+                },
+                %{
+                  "in" => "query",
+                  "name" => "include",
+                  "schema" => %{
+                    "type" => "string"
+                  }
+                }
+              ],
+              "responses" => %{
+                "200" => %{
+                  "content" => %{
+                    "application/json" => %{
+                      "schema" => %{
+                        "ref" => "#/components/schemas/MyResponse"
+                      }
+                    }
+                  }
+                }
+              },
+              "requestBody" => %{
+                "type" => "object",
+                "properties" => %{
+                  "id" => %{"type" => "string", "format" => "uuid"}
+                }
+              },
+              "tags" => ["foo", "bar"]
+            }
           }
-        }
-      },
-      "components" => %{
-        "schemas" => %{
-          "MyResponse" => %{
-            "type" => "object",
-            "description" => "A response",
-            "properties" => %{
-              "id" => %{"type" => "string", "format" => "uuid"},
-              "name" => %{"type" => "string", "description" => "The response name"}
+        },
+        "components" => %{
+          "schemas" => %{
+            "MyResponse" => %{
+              "type" => "object",
+              "description" => "A response",
+              "properties" => %{
+                "id" => %{"type" => "string", "format" => "uuid"},
+                "name" => %{"type" => "string", "description" => "The response name"}
+              }
             }
           }
         }
       }
-    }
   """
 
   alias Rolodex.{
@@ -120,7 +168,7 @@ defmodule Rolodex do
   @route_fields_with_schemas [:body, :headers, :path_params, :query_params, :responses]
 
   @doc """
-  Runs Rolodex and writes out documentation JSON to the specified destination
+  Runs Rolodex and writes out documentation to the specified destination
   """
   @spec run(Rolodex.Config.t()) :: :ok | {:error, any()}
   def run(config) do
