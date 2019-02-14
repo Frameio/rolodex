@@ -9,7 +9,7 @@ Currently supports:
 
 ## Documentation
 
-See [https://hexdocs.pm/rolodex](https://hexdocs.pm/rolodex)
+See [https://hexdocs.pm/rolodex](https://hexdocs.pm/rolodex/Rolodex.html)
 
 ## Installation
 
