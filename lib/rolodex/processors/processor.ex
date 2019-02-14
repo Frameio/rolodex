@@ -6,7 +6,7 @@ defmodule Rolodex.Processor do
   processing and returning the formatted JSON.
   """
 
-  @optional_callbacks process_headers: 1, process_routes: 2, process_schemas: 1
+  @optional_callbacks process_headers: 1, process_routes: 1, process_schemas: 1
 
   @doc """
   Process is responsible for turning each Rolodex.t() it receives and turning it
@@ -23,8 +23,8 @@ defmodule Rolodex.Processor do
   @doc """
   Transforms each Rolodex.Route.t() into a map to be added to the final JSON blob.
   """
-  @callback process_routes([Rolodex.Route.t()], schemas :: map()) :: list()
-  def process_routes(_, _), do: []
+  @callback process_routes([Rolodex.Route.t()]) :: map()
+  def process_routes(_), do: %{}
 
   @doc """
   Transforms the schemas map into a map to be added to the final JSON blob.

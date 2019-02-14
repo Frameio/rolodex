@@ -41,27 +41,34 @@ defmodule Rolodex.Route do
   """
 
   alias Phoenix.Router
-  alias Rolodex.{Config, PipelineConfig}
+
+  alias Rolodex.{
+    Config,
+    PipelineConfig,
+    Schema
+  }
 
   defstruct [
-    :description,
     :path,
     :verb,
     body: %{},
+    description: "",
     headers: %{},
-    query_params: %{},
     metadata: %{},
+    path_params: %{},
+    pipe_through: [],
+    query_params: %{},
     responses: %{},
-    pipe_through: %{},
     tags: []
   ]
 
   @type t :: %__MODULE__{
-          body: %{},
+          body: map(),
           description: binary(),
           headers: %{},
           metadata: %{},
           path: binary(),
+          path_params: %{},
           pipe_through: [atom()],
           query_params: %{},
           responses: %{},
@@ -125,7 +132,28 @@ defmodule Rolodex.Route do
         _ -> false
       end)
 
-    {desc, metadata}
+    {desc, parse_param_fields(metadata)}
+  end
+
+  defp parse_param_fields(metadata) do
+    metadata =
+      case Map.get(metadata, :body, nil) do
+        nil ->
+          metadata
+
+        body ->
+          %{metadata | body: Schema.new_field(body)}
+      end
+
+    [:headers, :path_params, :query_params, :responses]
+    |> Enum.reduce(metadata, fn key, acc ->
+      fields =
+        acc
+        |> Map.get(key, %{})
+        |> Map.new(fn {k, v} -> {k, Schema.new_field(v)} end)
+
+      Map.put(acc, key, fields)
+    end)
   end
 
   @doc """
@@ -153,6 +181,7 @@ defmodule Rolodex.Route do
       pipeline_config =
         pipelines
         |> Map.get(pt, %{})
+        |> parse_param_fields()
         |> PipelineConfig.new()
 
       deep_merge(acc, pipeline_config)

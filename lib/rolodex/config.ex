@@ -107,11 +107,13 @@ defmodule Rolodex.PipelineConfig do
 
   defstruct body: %{},
             headers: %{},
+            path_params: %{},
             query_params: %{}
 
   @type t :: %__MODULE__{
           body: map(),
           headers: map(),
+          path_params: map(),
           query_params: map()
         }
 
