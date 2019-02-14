@@ -408,7 +408,9 @@ defmodule Rolodex.Route do
   defp fetch_pipeline_config(%Router.Route{pipe_through: nil}, _), do: PipelineConfig.new()
   defp fetch_pipeline_config(_, %Config{pipelines: nil}), do: PipelineConfig.new()
 
-  defp fetch_pipeline_config(%Router.Route{pipe_through: pipe_through}, %Config{pipelines: pipelines}) do
+  defp fetch_pipeline_config(%Router.Route{pipe_through: pipe_through}, %Config{
+         pipelines: pipelines
+       }) do
     Enum.reduce(pipe_through, PipelineConfig.new(), fn pt, acc ->
       pipeline_config =
         pipelines

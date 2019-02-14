@@ -106,7 +106,8 @@ defmodule Rolodex.Processors.Swagger do
     }
   end
 
-  defp process_responses(%Route{responses: responses}) when map_size(responses) == 0, do: responses
+  defp process_responses(%Route{responses: responses}) when map_size(responses) == 0,
+    do: responses
 
   defp process_responses(%Route{responses: responses}) do
     responses
