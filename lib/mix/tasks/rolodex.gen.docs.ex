@@ -1,6 +1,9 @@
-defmodule Mix.Tasks.GenDocs do
+defmodule Mix.Tasks.Rolodex.Gen.Docs do
   use Mix.Task
 
+  @shortdoc "Runs Rolodex to generate API docs."
+
+  @doc false
   def run(_args) do
     Application.get_all_env(:rolodex)
     |> Rolodex.Config.new()

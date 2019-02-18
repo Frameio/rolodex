@@ -211,6 +211,18 @@ defmodule Rolodex.RouteTest do
                verb: :post
              }
     end
+
+    test "It handles a missing controller action" do
+      phoenix_route = %Router.Route{
+        plug: TestController,
+        opts: :does_not_exist,
+        path: "/v2/test",
+        pipe_through: [],
+        verb: :post
+      }
+
+      assert Route.new(phoenix_route, Config.new()) == nil
+    end
   end
 
   def setup_config(_) do
