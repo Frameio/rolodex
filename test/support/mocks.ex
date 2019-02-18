@@ -4,6 +4,7 @@ defmodule Rolodex.Mocks.TestRouter do
   scope "/api", Rolodex.Mocks do
     get("/demo", TestController, :index)
     post("/demo/:id", TestController, :conflicted)
+    delete("/demo/:id", TestController, :undocumented)
   end
 end
 

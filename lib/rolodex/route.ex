@@ -339,10 +339,32 @@ defmodule Rolodex.Route do
         }
 
   @doc """
+  Checks to see if the given route matches any filter(s) stored in `Rolodex.Config`.
+  """
+  @spec matches_filter?(t(), Rolodex.Config.t()) :: boolean()
+  def matches_filter?(route, config)
+
+  def matches_filter?(route, %Config{filters: filters}) when is_list(filters) do
+    Enum.any?(filters, fn
+      filter_opts when is_map(filter_opts) ->
+        keys = Map.keys(filter_opts)
+        Map.take(route, keys) == filter_opts
+
+      filter_fun when is_function(filter_fun) ->
+        filter_fun.(route)
+
+      _ ->
+        false
+    end)
+  end
+
+  def matches_filter?(_, _), do: false
+
+  @doc """
   Looks up a `Phoenix.Router.Route` controller action function, parses any
   doc annotations, and returns as a struct.
   """
-  @spec new(Phoenix.Router.Route.t(), Rolodex.Config.t()) :: Rolodex.Route.t()
+  @spec new(Phoenix.Router.Route.t(), Rolodex.Config.t()) :: t()
   def new(phoenix_route, config) do
     action_doc_data = fetch_route_docs(phoenix_route, config)
     pipeline_config = fetch_pipeline_config(phoenix_route, config)

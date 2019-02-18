@@ -19,7 +19,13 @@ defmodule RolodexTest do
 
   describe "#run/1" do
     test "Generates documentation and writes out to destination" do
-      config = Config.new(router: TestRouter, writer: %{module: Rolodex.Writers.Mock})
+      config =
+        Config.new(
+          router: TestRouter,
+          filters: [%{path: "/api/demo/:id", verb: :delete}],
+          writer: %{module: Rolodex.Writers.Mock}
+        )
+
       result = capture_io(fn -> Rolodex.run(config) end) |> Jason.decode!()
 
       assert result == %{
@@ -262,6 +268,15 @@ defmodule RolodexTest do
                path: "/api/demo/:id",
                verb: :post
              }
+    end
+
+    test "It filters out routes that match the config" do
+      num_routes =
+        Config.new(router: TestRouter, filters: [%{path: "/api/demo/:id", verb: :delete}])
+        |> Rolodex.generate_routes()
+        |> length()
+
+      assert num_routes == 2
     end
   end
 
