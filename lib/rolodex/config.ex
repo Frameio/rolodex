@@ -19,7 +19,7 @@ defmodule Rolodex.Config do
   parameter values for all routes in a pipeline. See `Rolodex.PipelineConfig`.
   - `processor` (default: `Rolodex.Processors.Swagger`) - Module implementing
   the `Rolodex.Processor` behaviour
-  - `writer` (default: `%{file_path: "", writer: Rolodex.Writers.FileWriter`) - Destination
+  - `writer` (default: `Rolodex.WriterConfig.t()`) - Destination
   for writing and a module implementing the `Rolodex.Writer` behaviour
 
   ## Example
@@ -30,17 +30,19 @@ defmodule Rolodex.Config do
       version: "1.0.0",
       router: MyRouter,
       processor: Rolodex.Processors.Swagger,
-      writer: %{
-        file_path: "/",
+      writer: [
+        file_name: "my_docs.json",
         module: Rolodex.Writers.FileWriter
-      },
-      pipelines: %{
-        api: %{
+      ],
+      pipelines: [
+        api: [
           headers: %{"X-Request-Id" => :uuid}
-        }
-      }
+        ]
+      ]
 
   """
+
+  alias Rolodex.{PipelineConfig, WriterConfig}
 
   @enforce_keys [
     :description,
@@ -54,17 +56,14 @@ defmodule Rolodex.Config do
 
   defstruct [
     :description,
+    :pipelines,
     :router,
     :title,
     :version,
+    :writer,
     filters: :none,
     locale: "en",
-    pipelines: %{},
-    processor: Rolodex.Processors.Swagger,
-    writer: %{
-      file_path: "",
-      module: Rolodex.Writers.FileWriter
-    }
+    processor: Rolodex.Processors.Swagger
   ]
 
   @type t :: %__MODULE__{
@@ -76,7 +75,7 @@ defmodule Rolodex.Config do
           router: module(),
           title: binary(),
           version: binary(),
-          writer: map()
+          writer: WriterConfig.t()
         }
 
   @type pipeline_configs :: %{
@@ -85,8 +84,48 @@ defmodule Rolodex.Config do
 
   @spec new(list()) :: Rolodex.Config.t()
   def new(kwl \\ []) do
-    struct(__MODULE__, kwl)
+    opts =
+      kwl
+      |> Map.new()
+      |> set_writer_config()
+      |> set_pipelines_config()
+
+    struct(__MODULE__, opts)
   end
+
+  defp set_writer_config(opts), do: Map.put(opts, :writer, get_writer_config(opts))
+
+  defp get_writer_config(%{writer: writer}), do: WriterConfig.new(writer)
+  defp get_writer_config(_), do: WriterConfig.new()
+
+  defp set_pipelines_config(opts), do: Map.put(opts, :pipelines, get_pipelines_config(opts))
+
+  defp get_pipelines_config(%{pipelines: pipelines}) do
+    Map.new(pipelines, fn {k, v} -> {k, PipelineConfig.new(v)} end)
+  end
+
+  defp get_pipelines_config(_), do: %{}
+end
+
+defmodule Rolodex.WriterConfig do
+  @moduledoc """
+  Defines writer config params.
+
+  - `file_name` (default: `openapi.json`) - name of the docs output file, it will
+  be written to the root directory of your project
+  - `module` (default: `Rolodex.Writers.FileWriter`) - the writer behaviour to use
+  """
+
+  defstruct file_name: "openapi.json",
+            module: Rolodex.Writers.FileWriter
+
+  @type t :: %__MODULE__{
+          file_name: binary(),
+          module: module()
+        }
+
+  @spec new(list() | map()) :: t()
+  def new(opts \\ []), do: struct(__MODULE__, opts)
 end
 
 defmodule Rolodex.PipelineConfig do
@@ -121,8 +160,9 @@ defmodule Rolodex.PipelineConfig do
           query_params: map()
         }
 
-  @spec new(map()) :: Rolodex.PipelineConfig.t()
-  def new(params \\ %{}) do
-    struct(__MODULE__, params)
+  @spec new(list() | map()) :: t()
+  def new(params \\ []) do
+    opts = Map.new(params, fn {k, v} -> {k, Map.new(v)} end)
+    struct(__MODULE__, opts)
   end
 end

@@ -184,7 +184,9 @@ defmodule Rolodex do
          :ok <- writer.close(device) do
       :ok
     else
-      err -> err
+      err ->
+        IO.puts("Failed to write docs with error:")
+        IO.inspect(err)
     end
   end
 
@@ -210,7 +212,7 @@ defmodule Rolodex do
     router.__routes__()
     |> Flow.from_enumerable()
     |> Flow.map(&Route.new(&1, config))
-    |> Flow.reject(&Route.matches_filter?(&1, config))
+    |> Flow.reject(&(&1 == nil || Route.matches_filter?(&1, config)))
     |> Enum.to_list()
   end
 

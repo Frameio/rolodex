@@ -304,7 +304,6 @@ defmodule Rolodex.Route do
 
   alias Rolodex.{
     Config,
-    PipelineConfig,
     Schema
   }
 
@@ -364,35 +363,45 @@ defmodule Rolodex.Route do
   Looks up a `Phoenix.Router.Route` controller action function, parses any
   doc annotations, and returns as a struct.
   """
-  @spec new(Phoenix.Router.Route.t(), Rolodex.Config.t()) :: t()
+  @spec new(Phoenix.Router.Route.t(), Rolodex.Config.t()) :: t() | nil
   def new(phoenix_route, config) do
-    action_doc_data = fetch_route_docs(phoenix_route, config)
-    pipeline_config = fetch_pipeline_config(phoenix_route, config)
+    with action_doc_data when is_map(action_doc_data) <- fetch_route_docs(phoenix_route, config) do
+      pipeline_config = fetch_pipeline_config(phoenix_route, config)
 
-    phoenix_route
-    |> Map.take(@phoenix_route_params)
-    |> deep_merge(Map.from_struct(pipeline_config))
-    |> deep_merge(action_doc_data)
-    |> to_struct()
+      phoenix_route
+      |> Map.take(@phoenix_route_params)
+      |> deep_merge(pipeline_config)
+      |> deep_merge(action_doc_data)
+      |> to_struct()
+    else
+      _ -> nil
+    end
   end
 
   defp to_struct(data), do: struct(__MODULE__, data)
 
   # Uses `Code.fetch_docs/1` to lookup `@doc` annotations for the controller action
-  defp fetch_route_docs(%Router.Route{plug: plug, opts: action}, config) do
-    {_, _, _, desc, metadata} =
-      plug
-      |> Code.fetch_docs()
-      |> Tuple.to_list()
-      |> Enum.at(-1)
-      |> Enum.find(fn
-        {{:function, ^action, _arity}, _, _, _, _} -> true
-        _ -> false
-      end)
+  defp fetch_route_docs(phoenix_route, config) do
+    case do_docs_fetch(phoenix_route) do
+      {_, _, _, desc, metadata} ->
+        metadata
+        |> parse_param_fields()
+        |> Map.put(:desc, parse_description(desc, config))
 
-    metadata
-    |> parse_param_fields()
-    |> Map.put(:desc, parse_description(desc, config))
+      _ ->
+        nil
+    end
+  end
+
+  defp do_docs_fetch(%Router.Route{plug: plug, opts: action}) do
+    plug
+    |> Code.fetch_docs()
+    |> Tuple.to_list()
+    |> Enum.at(-1)
+    |> Enum.find(fn
+      {{:function, ^action, _arity}, _, _, _, _} -> true
+      _ -> false
+    end)
   end
 
   defp parse_param_fields(metadata) do
@@ -427,18 +436,20 @@ defmodule Rolodex.Route do
   # Builds shared `Rolodex.PipelineConfig` data for the given route. The config
   # result will be empty if the route is not piped through any router pipelines or
   # if there is no shared pipelines data in `Rolodex.Config`.
-  defp fetch_pipeline_config(%Router.Route{pipe_through: nil}, _), do: PipelineConfig.new()
-  defp fetch_pipeline_config(_, %Config{pipelines: nil}), do: PipelineConfig.new()
+  defp fetch_pipeline_config(%Router.Route{pipe_through: nil}, _), do: %{}
+
+  defp fetch_pipeline_config(_, %Config{pipelines: pipelines}) when map_size(pipelines) == 0,
+    do: %{}
 
   defp fetch_pipeline_config(%Router.Route{pipe_through: pipe_through}, %Config{
          pipelines: pipelines
        }) do
-    Enum.reduce(pipe_through, PipelineConfig.new(), fn pt, acc ->
+    Enum.reduce(pipe_through, %{}, fn pt, acc ->
       pipeline_config =
         pipelines
         |> Map.get(pt, %{})
+        |> Map.from_struct()
         |> parse_param_fields()
-        |> PipelineConfig.new()
 
       deep_merge(acc, pipeline_config)
     end)
