@@ -1,6 +1,6 @@
 # Rolodex
 
-[![CircleCI](https://circleci.com/gh/Frameio/rolodex.svg?style=svg)](https://circleci.com/gh/Frameio/rolodex)
+[![hex.pm version](https://img.shields.io/hexpm/v/rolodex.svg)](https://hex.pm/packages/rolodex) [![CircleCI](https://circleci.com/gh/Frameio/rolodex.svg?style=svg)](https://circleci.com/gh/Frameio/rolodex)
 
 Rolodex generates documentation for your Phoenix API.
 

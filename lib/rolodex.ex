@@ -184,7 +184,9 @@ defmodule Rolodex do
          :ok <- writer.close(device) do
       :ok
     else
-      err -> err
+      err ->
+        IO.puts("Failed to write docs with error:")
+        IO.inspect(err)
     end
   end
 
@@ -202,23 +204,15 @@ defmodule Rolodex do
 
   @doc """
   Inspects the Phoenix Router provided in your `Rolodex.Config`. Iterates
-  through the list of routes to generate a `Rolodex.Route` for each.
-
-  If you have a `filter` set in your config, it will filter out any routes that
-  match the filter.
+  through the list of routes to generate a `Rolodex.Route` for each. It will
+  filter out any route(s) that match the filter(s) you provide in your config.
   """
   @spec generate_routes(Rolodex.Config.t()) :: [Rolodex.Route.t()]
   def generate_routes(%Config{router: router} = config) do
     router.__routes__()
     |> Flow.from_enumerable()
     |> Flow.map(&Route.new(&1, config))
-    |> Flow.reject(fn route ->
-      case config.filter do
-        :none -> false
-        # TODO(billyc): Need to rework/improve filtering i think...
-        filter -> route == filter
-      end
-    end)
+    |> Flow.reject(&(&1 == nil || Route.matches_filter?(&1, config)))
     |> Enum.to_list()
   end
 

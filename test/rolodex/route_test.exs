@@ -2,9 +2,55 @@ defmodule Rolodex.RouteTest do
   use ExUnit.Case
 
   alias Phoenix.Router
-  alias Rolodex.Mocks.{TestController, User}
+  alias Rolodex.Mocks.{TestController, TestRouter, User}
 
   alias Rolodex.{Config, Route}
+
+  describe "#matches_filter?/2" do
+    setup [:setup_config]
+
+    test "Always returns false when no filters provided", %{config: config} do
+      routes =
+        TestRouter.__routes__()
+        |> Enum.map(&Route.new(&1, config))
+
+      assert routes |> Enum.at(0) |> Route.matches_filter?(config) == false
+      assert routes |> Enum.at(1) |> Route.matches_filter?(config) == false
+    end
+
+    test "Returns true when for a route that matches a filter map", %{config: config} do
+      config = %Config{config | filters: [%{path: "/api/demo", verb: :get}]}
+
+      routes =
+        TestRouter.__routes__()
+        |> Enum.map(&Route.new(&1, config))
+
+      assert routes |> Enum.at(0) |> Route.matches_filter?(config) == true
+      assert routes |> Enum.at(1) |> Route.matches_filter?(config) == false
+    end
+
+    test "Returns true for a route that matches a filter function", %{config: config} do
+      config = %Config{
+        config
+        | filters: [
+            fn
+              %Route{path: "/api/demo/:id", verb: :post} ->
+                true
+
+              _ ->
+                false
+            end
+          ]
+      }
+
+      routes =
+        TestRouter.__routes__()
+        |> Enum.map(&Route.new(&1, config))
+
+      assert routes |> Enum.at(0) |> Route.matches_filter?(config) == false
+      assert routes |> Enum.at(1) |> Route.matches_filter?(config) == true
+    end
+  end
 
   describe "#new/2" do
     setup [:setup_config]
@@ -164,6 +210,18 @@ defmodule Rolodex.RouteTest do
                pipe_through: [],
                verb: :post
              }
+    end
+
+    test "It handles a missing controller action" do
+      phoenix_route = %Router.Route{
+        plug: TestController,
+        opts: :does_not_exist,
+        path: "/v2/test",
+        pipe_through: [],
+        verb: :post
+      }
+
+      assert Route.new(phoenix_route, Config.new()) == nil
     end
   end
 
