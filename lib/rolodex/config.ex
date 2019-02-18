@@ -11,7 +11,9 @@ defmodule Rolodex.Config do
   - `router` (required) - `Phoenix.Router` module to inspect
   - `title` (required) - Title for your documentation output
   - `version` (required) - Your documentation's version
-  - `filter` (default: `:none`) - TODO
+  - `filters` (default: `:none`) - A list of maps or functions used to filter
+  out routes from your documentation. Filters are matched against `Rolodex.Route`
+  structs in `Rolodex.Route.matches_filter?/2`.
   - `locale` (default: `"en"`) - Locale key to use when processing descriptions
   - `pipelines` (default: `%{}`) - Map of pipeline configs. Used to set default
   parameter values for all routes in a pipeline. See `Rolodex.PipelineConfig`.
@@ -55,7 +57,7 @@ defmodule Rolodex.Config do
     :router,
     :title,
     :version,
-    filter: :none,
+    filters: :none,
     locale: "en",
     pipelines: %{},
     processor: Rolodex.Processors.Swagger,
@@ -67,7 +69,7 @@ defmodule Rolodex.Config do
 
   @type t :: %__MODULE__{
           description: binary(),
-          filter: keyword() | :none,
+          filters: [map() | (Rolodex.Route.t() -> boolean())] | :none,
           locale: binary(),
           pipelines: pipeline_configs() | nil,
           processor: module(),
