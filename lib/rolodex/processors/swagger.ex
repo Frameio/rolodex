@@ -48,12 +48,10 @@ defmodule Rolodex.Processors.Swagger do
   @impl Rolodex.Processor
   def process_routes(routes) do
     routes
-    |> Flow.from_enumerable()
-    |> Flow.group_by(&path_with_params/1)
-    |> Flow.map(fn {path, routes} ->
+    |> Enum.group_by(&path_with_params/1)
+    |> Map.new(fn {path, routes} ->
       {path, process_routes_for_path(routes)}
     end)
-    |> Map.new()
   end
 
   # Transform Phoenix-style path params to Swagger-style: /foo/:bar -> /foo/{bar}
@@ -137,11 +135,9 @@ defmodule Rolodex.Processors.Swagger do
   @impl Rolodex.Processor
   def process_schemas(schemas) do
     schemas
-    |> Flow.from_enumerable()
-    |> Flow.map(fn {mod, schema} ->
+    |> Map.new(fn {mod, schema} ->
       {mod.__schema__(:name), process_schema_field(schema)}
     end)
-    |> Map.new()
   end
 
   defp process_schema_field(%{type: :ref, ref: ref}) when ref != nil do
