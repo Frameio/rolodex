@@ -1,17 +1,14 @@
 defmodule Rolodex.Route do
   @moduledoc """
-  Collects metadata associated with an API route. `new/2` takes in a
-  `Phoenix.Router.Route`, finds the controller action function associated with
-  the route, and collects metadata set in the `@doc` annotations for the function.
+  Collects metadata associated with an API route.
 
-  ## Route Annotations
+  `new/2` takes a `Phoenix.Router.Route`, finds the controller action
+  function associated with the route, and collects metadata set in the `@doc`
+  annotations for the function.
 
-  Details about all the valid annotations that `new/2` will look for. Each one has
-  a default, so they each can be omitted if not needed for the current route.
+  ### Fields
 
-  **`desc`**
-
-  Default: `""`
+  * **`desc`** (Default: `""`)
 
   Set via an `@doc` comment
 
@@ -21,9 +18,7 @@ defmodule Rolodex.Route do
       @doc "My route description"
       def route(_, _), do: nil
 
-  **`body`**
-
-  Default: `%{}`
+  * **`body`** *(Default: `%{}`)
 
   Request body parameters. Valid inputs: `Rolodex.Schema`, a map, or a list.
 
@@ -63,9 +58,7 @@ defmodule Rolodex.Route do
         ]
       ]
 
-  **`headers`**
-
-  Default: `%{}`
+  * **`headers`** (Default: `%{}`)
 
   Request headers. Valid input is a map or keyword list, where each key is a
   header name and each value is a description of the value in the form of a
@@ -110,16 +103,15 @@ defmodule Rolodex.Route do
         ]
       ]
 
-  **`path_params`**
-
-  Default: `%{}`
+  * **`path_params`** (Default: `%{}`)
 
   Parameters in the route path. Valid input is a map or keyword list, where each
-  key is a path parameter name and each value is a description of the value in the
-  form of a `Rolodex.Schema`, an atom, a map, or a list.
+  key is a path parameter name and each value is a description of the value in
+  the form of a `Rolodex.Schema`, an atom, a map, or a list.
 
-  Each parameter value can also specify the following: `minimum` (default: `nil`),
-  `maximum` (default: `nil`), default (default: `nil`), and required (default: `required`).
+  Each parameter value can also specify the following: `minimum` (default:
+  `nil`), `maximum` (default: `nil`), default (default: `nil`), and required
+  (default: `required`).
 
       @doc [
         # Simplest path parameter description: a name with a concrete type
@@ -147,16 +139,15 @@ defmodule Rolodex.Route do
         ]
       ]
 
-  **`query_params`**
-
-  Default: `%{}`
+  * **`query_params`** (Default: `%{}`)
 
   Query parameters. Valid input is a map or keyword list, where each key is a
   query parameter name and each value is a description of the value in the form
   of a `Rolodex.Schema`, an atom, a map, or a list.
 
   Each query value can also specify the following: `minimum` (default: `nil`),
-  `maximum` (default: `nil`), default (default: `nil`), and required (default: `required`).
+  `maximum` (default: `nil`), default (default: `nil`), and required (default:
+  `required`).
 
       @doc [
         # Simplest query parameter description: a name with a concrete type
@@ -194,9 +185,7 @@ defmodule Rolodex.Route do
         ]
       ]
 
-  **`responses`**
-
-  Default: `%{}`
+  * **`responses`** (Default: `%{}`)
 
   Response(s) for the route action. Valid input is a map or keyword list, where
   each key is a response code and each value is a description of the response in
@@ -240,15 +229,11 @@ defmodule Rolodex.Route do
         }
       ]
 
-  **`metadata`**
-
-  Default: `%{}`
+  * **`metadata`** (Default: `%{}`)
 
   Any metadata for the route. Valid input is a map or keyword list.
 
-  **`tags`**
-
-  Default: `[]`
+  * **`tags`** (Default: `[]`)
 
   Route tags. Valid input is a list of strings.
 

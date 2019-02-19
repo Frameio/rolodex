@@ -25,21 +25,21 @@ defmodule Rolodex.Config do
 
   ## Example
 
-    config :rolodex,
-      title: "MyApp",
-      description: "An example",
-      version: "1.0.0",
-      router: MyRouter,
-      processor: Rolodex.Processors.Swagger,
-      writer: [
-        file_name: "my_docs.json",
-        module: Rolodex.Writers.FileWriter
-      ],
-      pipelines: [
-        api: [
-          headers: %{"X-Request-Id" => :uuid}
+      config :rolodex,
+        title: "MyApp",
+        description: "An example",
+        version: "1.0.0",
+        router: MyRouter,
+        processor: Rolodex.Processors.Swagger,
+        writer: [
+          file_name: "my_docs.json",
+          module: Rolodex.Writers.FileWriter
+        ],
+        pipelines: [
+          api: [
+            headers: %{"X-Request-Id" => :uuid}
+          ]
         ]
-      ]
 
   """
 
@@ -144,11 +144,11 @@ defmodule Rolodex.PipelineConfig do
 
   ## Example
 
-    %Rolodex.PipelineConfig{
-      body: %{id: :uuid, name: :string}
-      headers: %{"X-Request-Id" => :uuid},
-      query_params: %{account_id: :uuid}
-    }
+      %Rolodex.PipelineConfig{
+        body: %{id: :uuid, name: :string}
+        headers: %{"X-Request-Id" => :uuid},
+        query_params: %{account_id: :uuid}
+      }
   """
 
   defstruct body: %{},
