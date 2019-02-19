@@ -1,13 +1,20 @@
 defmodule Rolodex.Processors.SwaggerTest do
   use ExUnit.Case
 
-  alias Rolodex.{Route, Schema}
+  alias Rolodex.{Config, Route, Schema}
   alias Rolodex.Processors.Swagger
   alias Rolodex.Mocks.{User, NotFound}
 
   describe "#process/3" do
     test "Processes config, routes, and schemas into a serialized JSON blob" do
-      config = Rolodex.Config.new(description: "foo", title: "bar", version: "1")
+      config =
+        Config.new(
+          description: "foo",
+          title: "bar",
+          version: "1",
+          server_urls: ["https://api.example.com"]
+        )
+
       schemas = %{User => Schema.to_map(User)}
 
       routes = [
@@ -37,6 +44,7 @@ defmodule Rolodex.Processors.SwaggerTest do
                  "description" => config.description,
                  "version" => config.version
                },
+               "servers" => [%{"url" => "https://api.example.com"}],
                "paths" => %{
                  "/foo" => %{
                    "get" => %{
@@ -125,15 +133,23 @@ defmodule Rolodex.Processors.SwaggerTest do
 
   describe "#process_headers/1" do
     test "It returns a map of top-level metadata" do
-      config = Rolodex.Config.new(description: "foo", title: "bar", version: "1")
+      config =
+        Config.new(
+          description: "foo",
+          title: "bar",
+          version: "1",
+          server_urls: ["https://api.example.com"]
+        )
+
       headers = Swagger.process_headers(config)
 
       assert headers == %{
-               "openapi" => "3.0.0",
-               "info" => %{
-                 "title" => config.title,
-                 "description" => config.description,
-                 "version" => config.version
+               openapi: "3.0.0",
+               servers: [%{url: "https://api.example.com"}],
+               info: %{
+                 title: config.title,
+                 description: config.description,
+                 version: config.version
                }
              }
     end

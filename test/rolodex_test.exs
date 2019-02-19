@@ -23,7 +23,8 @@ defmodule RolodexTest do
         Config.new(
           router: TestRouter,
           filters: [%{path: "/api/demo/:id", verb: :delete}],
-          writer: %{module: Rolodex.Writers.Mock}
+          writer: %{module: Rolodex.Writers.Mock},
+          server_urls: ["https://api.example.com"]
         )
 
       result = capture_io(fn -> Rolodex.run(config) end) |> Jason.decode!()
@@ -90,6 +91,7 @@ defmodule RolodexTest do
                },
                "info" => %{"description" => nil, "title" => nil, "version" => nil},
                "openapi" => "3.0.0",
+               "servers" => [%{"url" => "https://api.example.com"}],
                "paths" => %{
                  "/api/demo" => %{
                    "get" => %{
