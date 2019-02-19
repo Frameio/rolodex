@@ -19,6 +19,7 @@ defmodule Rolodex.Config do
   parameter values for all routes in a pipeline. See `Rolodex.PipelineConfig`.
   - `processor` (default: `Rolodex.Processors.Swagger`) - Module implementing
   the `Rolodex.Processor` behaviour
+  - `server_urls` (default: []) - List of base url(s) for your API paths
   - `writer` (default: `Rolodex.WriterConfig.t()`) - Destination
   for writing and a module implementing the `Rolodex.Writer` behaviour
 
@@ -63,7 +64,8 @@ defmodule Rolodex.Config do
     :writer,
     filters: :none,
     locale: "en",
-    processor: Rolodex.Processors.Swagger
+    processor: Rolodex.Processors.Swagger,
+    server_urls: []
   ]
 
   @type t :: %__MODULE__{
@@ -73,6 +75,7 @@ defmodule Rolodex.Config do
           pipelines: pipeline_configs() | nil,
           processor: module(),
           router: module(),
+          server_urls: [binary()],
           title: binary(),
           version: binary(),
           writer: WriterConfig.t()

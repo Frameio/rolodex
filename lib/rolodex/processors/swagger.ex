@@ -10,7 +10,7 @@ defmodule Rolodex.Processors.Swagger do
     :type
   ]
 
-  alias Rolodex.Route
+  alias Rolodex.{Config, Route}
 
   @impl Rolodex.Processor
   def process(config, routes, schemas) do
@@ -31,13 +31,18 @@ defmodule Rolodex.Processors.Swagger do
   @impl Rolodex.Processor
   def process_headers(config) do
     %{
-      "openapi" => @open_api_version,
-      "info" => %{
-        "title" => config.title,
-        "description" => config.description,
-        "version" => config.version
+      openapi: @open_api_version,
+      servers: process_server_urls(config),
+      info: %{
+        title: config.title,
+        description: config.description,
+        version: config.version
       }
     }
+  end
+
+  defp process_server_urls(%Config{server_urls: urls}) do
+    for url <- urls, do: %{url: url}
   end
 
   @impl Rolodex.Processor
