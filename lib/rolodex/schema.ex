@@ -237,13 +237,23 @@ defmodule Rolodex.Schema do
 
   ### Parsing primitive data types (e.g. `string`)
 
+  Valid options for a primitive are:
+
+  - `enum` - a list of possible values
+  - `desc`
+  - `default`
+  - `format`
+  - `maximum`
+  - `minimum`
+  - `required`
+
       # Creating a simple field with a primitive type
       iex> Rolodex.Schema.new_field(:string)
       %{type: :string}
 
       # With additional options
-      iex> Rolodex.Schema.new_field(type: :string, desc: "My string")
-      %{type: :string, desc: "My string"}
+      iex> Rolodex.Schema.new_field(type: :string, desc: "My string", enum: ["foo", "bar"])
+      %{type: :string, desc: "My string", enum: ["foo", "bar"]}
 
   ### Parsing collections: objects and lists
 

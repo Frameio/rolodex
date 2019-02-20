@@ -33,8 +33,13 @@ defmodule RolodexTest do
                "components" => %{
                  "schemas" => %{
                    "Comment" => %{
+                     "description" => "A comment record",
                      "properties" => %{
-                       "id" => %{"format" => "uuid", "type" => "string"},
+                       "id" => %{
+                         "format" => "uuid",
+                         "type" => "string",
+                         "description" => "The comment id"
+                       },
                        "text" => %{
                          "type" => "string"
                        }
@@ -42,6 +47,7 @@ defmodule RolodexTest do
                      "type" => "object"
                    },
                    "NotFound" => %{
+                     "description" => "Not found response",
                      "properties" => %{
                        "message" => %{
                          "type" => "string"
@@ -54,27 +60,42 @@ defmodule RolodexTest do
                      "type" => "object"
                    },
                    "User" => %{
+                     "type" => "object",
+                     "description" => "A user record",
+                     "required" => ["id", "email"],
                      "properties" => %{
-                       "comment" => %{"$ref" => "#/components/schemas/Comment"},
+                       "id" => %{
+                         "type" => "string",
+                         "format" => "uuid",
+                         "description" => "The id of the user"
+                       },
+                       "email" => %{
+                         "type" => "string",
+                         "description" => "The email of the user"
+                       },
+                       "comment" => %{
+                         "$ref" => "#/components/schemas/Comment"
+                       },
                        "comments" => %{
-                         "items" => %{"$ref" => "#/components/schemas/Comment"},
-                         "type" => "array"
+                         "type" => "array",
+                         "items" => %{
+                           "$ref" => "#/components/schemas/Comment"
+                         }
                        },
                        "comments_of_many_types" => %{
+                         "type" => "array",
+                         "description" => "List of text or comment",
                          "items" => %{
                            "oneOf" => [
                              %{
                                "type" => "string"
                              },
-                             %{"$ref" => "#/components/schemas/Comment"}
+                             %{
+                               "$ref" => "#/components/schemas/Comment"
+                             }
                            ]
-                         },
-                         "type" => "array"
+                         }
                        },
-                       "email" => %{
-                         "type" => "string"
-                       },
-                       "id" => %{"format" => "uuid", "type" => "string"},
                        "multi" => %{
                          "oneOf" => [
                            %{
@@ -83,9 +104,10 @@ defmodule RolodexTest do
                            %{"$ref" => "#/components/schemas/NotFound"}
                          ]
                        },
-                       "parent" => %{"$ref" => "#/components/schemas/Parent"}
-                     },
-                     "type" => "object"
+                       "parent" => %{
+                         "$ref" => "#/components/schemas/Parent"
+                       }
+                     }
                    }
                  }
                },
@@ -97,24 +119,19 @@ defmodule RolodexTest do
                    "get" => %{
                      "parameters" => [
                        %{
-                         "description" => "",
                          "in" => "header",
                          "name" => "X-Request-Id",
                          "required" => true,
                          "schema" => %{"format" => "uuid", "type" => "string"}
                        },
                        %{
-                         "description" => "",
                          "in" => "path",
                          "name" => "account_id",
-                         "required" => false,
                          "schema" => %{"format" => "uuid", "type" => "string"}
                        },
                        %{
-                         "description" => "",
                          "in" => "query",
                          "name" => "id",
-                         "required" => false,
                          "schema" => %{
                            "default" => 2,
                            "maximum" => 10,
@@ -123,10 +140,8 @@ defmodule RolodexTest do
                          }
                        },
                        %{
-                         "description" => "",
                          "in" => "query",
                          "name" => "update",
-                         "required" => false,
                          "schema" => %{
                            "type" => "boolean"
                          }
@@ -139,7 +154,8 @@ defmodule RolodexTest do
                              "properties" => %{
                                "id" => %{"format" => "uuid", "type" => "string"},
                                "name" => %{
-                                 "type" => "string"
+                                 "type" => "string",
+                                 "description" => "The name"
                                }
                              },
                              "type" => "object"
@@ -192,10 +208,8 @@ defmodule RolodexTest do
                    "post" => %{
                      "parameters" => [
                        %{
-                         "description" => "",
                          "in" => "header",
                          "name" => "X-Request-Id",
-                         "required" => false,
                          "schema" => %{
                            "type" => "string"
                          }
@@ -435,11 +449,13 @@ defmodule RolodexTest do
                    },
                    email: %{
                      desc: "The email of the user",
-                     type: :string
+                     type: :string,
+                     required: true
                    },
                    id: %{
                      desc: "The id of the user",
-                     type: :uuid
+                     type: :uuid,
+                     required: true
                    },
                    multi: %{
                      of: [

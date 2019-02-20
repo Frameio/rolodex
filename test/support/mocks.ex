@@ -64,8 +64,8 @@ defmodule Rolodex.Mocks.User do
   use Rolodex.Schema
 
   schema "User", desc: "A user record" do
-    field(:id, :uuid, desc: "The id of the user")
-    field(:email, :string, desc: "The email of the user")
+    field(:id, :uuid, desc: "The id of the user", required: true)
+    field(:email, :string, desc: "The email of the user", required: true)
 
     # Nested object
     field(:comment, Rolodex.Mocks.Comment)

@@ -141,26 +141,30 @@ defmodule Rolodex.PipelineConfig do
   - `headers` (default: `%{}`)
   - `path_params` (default: `%{}`)
   - `query_params` (default: `%{}`)
+  - `responses` (default: `%{}`)
 
   ## Example
 
       %Rolodex.PipelineConfig{
         body: %{id: :uuid, name: :string}
         headers: %{"X-Request-Id" => :uuid},
-        query_params: %{account_id: :uuid}
+        query_params: %{account_id: :uuid},
+        responses: %{401 => SharedUnauthorizedResponse}
       }
   """
 
   defstruct body: %{},
             headers: %{},
             path_params: %{},
-            query_params: %{}
+            query_params: %{},
+            responses: %{}
 
   @type t :: %__MODULE__{
           body: map(),
           headers: map(),
           path_params: map(),
-          query_params: map()
+          query_params: map(),
+          responses: map()
         }
 
   @spec new(list() | map()) :: t()
