@@ -8,10 +8,10 @@ defmodule Rolodex do
   `Rolodex.run/1` encapsulates the full documentation generation process. When
   invoked, it will:
 
-  1) Traverse your Phoenix Router
-  2) Collect documentation data for the API endpoints exposed by your router
-  3) Serialize the data into a format of your choosing (e.g. Swagger JSON)
-  4) Write the serialized data out to a destination of your choosing.
+  1. Traverse your Phoenix Router
+  2. Collect documentation data for the API endpoints exposed by your router
+  3. Serialize the data into a format of your choosing (e.g. Swagger JSON)
+  4. Write the serialized data out to a destination of your choosing.
 
   Rolodex can be configured in the `config/` files for your Phoenix project. See
   `Rolodex.Config` for more details on configuration options.
