@@ -2,8 +2,6 @@ defmodule RolodexTest do
   use ExUnit.Case
   import ExUnit.CaptureIO
 
-  doctest Rolodex
-
   alias Rolodex.{Config, Route}
 
   alias Rolodex.Mocks.{
@@ -14,7 +12,10 @@ defmodule RolodexTest do
     Parent,
     SecondNested,
     TestRouter,
-    User
+    User,
+    UserResponse,
+    PaginatedUsersResponse,
+    ErrorResponse
   }
 
   describe "#run/1" do
@@ -31,6 +32,55 @@ defmodule RolodexTest do
 
       assert result == %{
                "components" => %{
+                 "responses" => %{
+                   "ErrorResponse" => %{
+                     "content" => %{
+                       "application/json" => %{
+                         "examples" => %{},
+                         "schema" => %{
+                           "properties" => %{
+                             "message" => %{"type" => "string"},
+                             "status" => %{"type" => "integer"}
+                           },
+                           "type" => "object"
+                         }
+                       }
+                     },
+                     "description" => "An error response"
+                   },
+                   "PaginatedUsersResponse" => %{
+                     "content" => %{
+                       "application/json" => %{
+                         "examples" => %{"response" => [%{"id" => "1"}]},
+                         "schema" => %{
+                           "properties" => %{
+                             "page" => %{"type" => "integer"},
+                             "total" => %{"type" => "integer"},
+                             "users" => %{
+                               "items" => %{
+                                 "$ref" => "#/components/schemas/User"
+                               },
+                               "type" => "array"
+                             }
+                           },
+                           "type" => "object"
+                         }
+                       }
+                     },
+                     "description" => "A paginated list of user entities"
+                   },
+                   "UserResponse" => %{
+                     "content" => %{
+                       "application/json" => %{
+                         "examples" => %{"response" => %{"id" => "1"}},
+                         "schema" => %{
+                           "$ref" => "#/components/schemas/User"
+                         }
+                       }
+                     },
+                     "description" => "A single user entity response"
+                   }
+                 },
                  "schemas" => %{
                    "Comment" => %{
                      "description" => "A comment record",
@@ -165,40 +215,13 @@ defmodule RolodexTest do
                      },
                      "responses" => %{
                        "200" => %{
-                         "content" => %{
-                           "application/json" => %{
-                             "schema" => %{"$ref" => "#/components/schemas/User"}
-                           }
-                         }
+                         "$ref" => "#/components/responses/UserResponse"
                        },
                        "201" => %{
-                         "content" => %{
-                           "application/json" => %{
-                             "schema" => %{
-                               "type" => "array",
-                               "items" => %{
-                                 "$ref" => "#/components/schemas/User"
-                               }
-                             }
-                           }
-                         }
+                         "$ref" => "#/components/responses/PaginatedUsersResponse"
                        },
                        "404" => %{
-                         "content" => %{
-                           "application/json" => %{
-                             "schema" => %{
-                               "properties" => %{
-                                 "message" => %{
-                                   "type" => "string"
-                                 },
-                                 "status" => %{
-                                   "type" => "integer"
-                                 }
-                               },
-                               "type" => "object"
-                             }
-                           }
-                         }
+                         "$ref" => "#/components/responses/ErrorResponse"
                        }
                      },
                      "summary" => "It's a test!"
@@ -259,18 +282,9 @@ defmodule RolodexTest do
                  update: %{type: :boolean}
                },
                responses: %{
-                 200 => %{type: :ref, ref: User},
-                 201 => %{
-                   type: :list,
-                   of: [%{type: :ref, ref: User}]
-                 },
-                 404 => %{
-                   type: :object,
-                   properties: %{
-                     status: %{type: :integer},
-                     message: %{type: :string}
-                   }
-                 }
+                 200 => %{type: :ref, ref: UserResponse},
+                 201 => %{type: :ref, ref: PaginatedUsersResponse},
+                 404 => %{type: :ref, ref: ErrorResponse}
                },
                tags: ["foo", "bar"],
                verb: :get
@@ -296,7 +310,7 @@ defmodule RolodexTest do
     end
   end
 
-  describe "#generate_schemas/1" do
+  describe "#generate_refs/1" do
     test "Generates a map of unique schemas from route header, body, query, path, and responses" do
       routes = [
         %Route{
@@ -311,7 +325,7 @@ defmodule RolodexTest do
           query_params: %{id: %{type: :uuid}},
           path_params: %{nested: %{type: :ref, ref: NotFound}},
           responses: %{
-            200 => %{type: :ref, ref: User}
+            200 => %{type: :ref, ref: UserResponse}
           }
         },
         %Route{
@@ -320,13 +334,14 @@ defmodule RolodexTest do
           query_params: %{nested: %{type: :ref, ref: NotFound}},
           path_params: %{id: %{type: :uuid}},
           responses: %{
-            200 => %{type: :ref, ref: User}
+            200 => %{type: :ref, ref: UserResponse}
           }
         }
       ]
 
-      schemas = Rolodex.generate_schemas(routes)
+      %{responses: responses, schemas: schemas} = Rolodex.generate_refs(routes)
 
+      assert Map.keys(responses) == [UserResponse]
       assert Map.keys(schemas) == [Comment, NotFound, Parent, User]
     end
 
@@ -335,7 +350,7 @@ defmodule RolodexTest do
         %Route{
           headers: %{"X-Request-Id" => %{type: :uuid}},
           responses: %{
-            200 => %{type: :ref, ref: User},
+            200 => %{type: :ref, ref: UserResponse},
             201 => :ok,
             203 => "moved permanently",
             123 => %{"hello" => "world"},
@@ -344,7 +359,9 @@ defmodule RolodexTest do
         }
       ]
 
-      schemas = Rolodex.generate_schemas(routes)
+      %{responses: responses, schemas: schemas} = Rolodex.generate_refs(routes)
+
+      assert Map.keys(responses) == [UserResponse]
 
       assert Map.keys(schemas) == [
                Comment,
@@ -355,128 +372,6 @@ defmodule RolodexTest do
                SecondNested,
                User
              ]
-
-      assert schemas == %{
-               Comment => %{
-                 type: :object,
-                 desc: "A comment record",
-                 properties: %{
-                   id: %{
-                     desc: "The comment id",
-                     type: :uuid
-                   },
-                   text: %{
-                     type: :string
-                   }
-                 }
-               },
-               FirstNested => %{
-                 type: :object,
-                 desc: nil,
-                 properties: %{
-                   nested: %{
-                     type: :ref,
-                     ref: SecondNested
-                   }
-                 }
-               },
-               NestedDemo => %{
-                 type: :object,
-                 desc: nil,
-                 properties: %{
-                   nested: %{
-                     type: :ref,
-                     ref: FirstNested
-                   }
-                 }
-               },
-               NotFound => %{
-                 type: :object,
-                 desc: "Not found response",
-                 properties: %{
-                   message: %{
-                     type: :string
-                   }
-                 }
-               },
-               Parent => %{
-                 type: :object,
-                 desc: nil,
-                 properties: %{
-                   child: %{
-                     type: :ref,
-                     ref: User
-                   }
-                 }
-               },
-               SecondNested => %{
-                 type: :object,
-                 desc: nil,
-                 properties: %{
-                   id: %{
-                     type: :uuid
-                   }
-                 }
-               },
-               User => %{
-                 desc: "A user record",
-                 properties: %{
-                   comment: %{
-                     type: :ref,
-                     ref: Comment
-                   },
-                   comments: %{
-                     of: [
-                       %{
-                         type: :ref,
-                         ref: Comment
-                       }
-                     ],
-                     type: :list
-                   },
-                   comments_of_many_types: %{
-                     desc: "List of text or comment",
-                     of: [
-                       %{
-                         type: :string
-                       },
-                       %{
-                         type: :ref,
-                         ref: Comment
-                       }
-                     ],
-                     type: :list
-                   },
-                   email: %{
-                     desc: "The email of the user",
-                     type: :string,
-                     required: true
-                   },
-                   id: %{
-                     desc: "The id of the user",
-                     type: :uuid,
-                     required: true
-                   },
-                   multi: %{
-                     of: [
-                       %{
-                         type: :string
-                       },
-                       %{
-                         type: :ref,
-                         ref: NotFound
-                       }
-                     ],
-                     type: :one_of
-                   },
-                   parent: %{
-                     type: :ref,
-                     ref: Parent
-                   }
-                 },
-                 type: :object
-               }
-             }
     end
   end
 end
