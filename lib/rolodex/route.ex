@@ -189,12 +189,12 @@ defmodule Rolodex.Route do
 
   Response(s) for the route action. Valid input is a map or keyword list, where
   each key is a response code and each value is a description of the response in
-  the form of a `Rolodex.Schema`, an atom, a map, or a list.
+  the form of a `Rolodex.Response`, an atom, a map, or a list.
 
       @doc [
         responses: %{
           # A response defined via a reusable schema
-          200 => MyResponseSchema,
+          200 => MyResponse,
 
           # Use `:ok` for simple success responses
           200 => :ok,
@@ -217,15 +217,15 @@ defmodule Rolodex.Route do
           ],
 
           # Response is a JSON array of a schema
-          200 => [MyResponseSchema],
+          200 => [MyResponse],
 
           # Same as above, but here the top-level data structure `type` is specified
-          200 => %{type: :list, of: [MyResponseSchema]},
-          200 => [type: :list, of: [MyResponseSchema]],
+          200 => %{type: :list, of: [MyResponse]},
+          200 => [type: :list, of: [MyResponse]],
 
           # Response is one of multiple possible results
-          200 => %{type: :one_of, of: [MyResponseSchema, OtherSchema]},
-          200 => [type: :one_of, of: [MyResponseSchema, OtherSchema]],
+          200 => %{type: :one_of, of: [MyResponse, OtherResponse]},
+          200 => [type: :one_of, of: [MyResponse, OtherResponse]],
         }
       ]
 
@@ -290,7 +290,7 @@ defmodule Rolodex.Route do
   alias Rolodex.{
     Config,
     PipelineConfig,
-    Schema
+    Field
   }
 
   defstruct [
@@ -397,7 +397,7 @@ defmodule Rolodex.Route do
           metadata
 
         body ->
-          %{metadata | body: Schema.new_field(body)}
+          %{metadata | body: Field.new(body)}
       end
 
     [:headers, :path_params, :query_params, :responses]
@@ -405,7 +405,7 @@ defmodule Rolodex.Route do
       fields =
         acc
         |> Map.get(key, %{})
-        |> Map.new(fn {k, v} -> {k, Schema.new_field(v)} end)
+        |> Map.new(fn {k, v} -> {k, Field.new(v)} end)
 
       Map.put(acc, key, fields)
     end)

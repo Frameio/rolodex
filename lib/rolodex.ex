@@ -3,7 +3,7 @@ defmodule Rolodex do
   Rolodex generates documentation for your Phoenix API.
 
   Rolodex inspects a Phoenix Router and transforms the `@doc` annotations on your
-  controller actions into documentation data in the format of your choosing.
+  controller actions into documentation in the format of your choosing.
 
   `Rolodex.run/1` encapsulates the full documentation generation process. When
   invoked, it will:
@@ -18,8 +18,9 @@ defmodule Rolodex do
 
   ## Features and resources
 
-  - **Reusable parameter schemas** - See `Rolodex.Schema` for details on how to
-  write reusable schemas for request and response parameters in your API.
+  - **Reusable schemas** - See `Rolodex.Schema` for details on how define reusable
+  parameter schemas. See `Rolodex.Response` for details on how to use schemas in
+  your API response definitions.
   - **Structured annotations** - See `Rolodex.Route` for details on how to format
   annotations on your API route action functions for the Rolodex parser to handle
   - **Generic serialization** - The `Rolodex.Processor` behaviour encapsulates
@@ -59,13 +60,27 @@ defmodule Rolodex do
         def index(conn, _), do: conn
       end
 
-      # Your response schema
+      # Your response
       defmodule MyResponse do
+        use Rolodex.Response
+
+        response "MyResponse" do
+          desc "A response"
+
+          content "application/json" do
+            schema MySchema
+            example :response, %{id: "123", name: "Ada Lovelace"}
+          end
+        end
+      end
+
+      # Your schema
+      defmodule MySchema do
         use Rolodex.Schema
 
-        schema "MyResponse", desc: "A response" do
+        schema "MySchema", desc: "A schema" do
           field :id, :uuid
-          field :name, :string, desc: "The response name"
+          field :name, :string, desc: "The name"
         end
       end
 
@@ -125,13 +140,7 @@ defmodule Rolodex do
               ],
               "responses" => %{
                 "200" => %{
-                  "content" => %{
-                    "application/json" => %{
-                      "schema" => %{
-                        "ref" => "#/components/schemas/MyResponse"
-                      }
-                    }
-                  }
+                  "$ref" => "#/components/responses/MyResponse"
                 }
               },
               "requestBody" => %{
@@ -145,13 +154,28 @@ defmodule Rolodex do
           }
         },
         "components" => %{
-          "schemas" => %{
+          "responses" => %{
             "MyResponse" => %{
-              "type" => "object",
               "description" => "A response",
+              "content" => %{
+                "application/json" => %{
+                  "schema" => %{
+                    "$ref" => "#/components/schemas/MySchema"
+                  },
+                  "examples" => %{
+                    "response" => %{"id" => "123", "name" => "Ada Lovelace"}
+                  }
+                }
+              }
+            }
+          },
+          "schemas" => %{
+            "MySchema" => %{
+              "type" => "object",
+              "description" => "A schema",
               "properties" => %{
                 "id" => %{"type" => "string", "format" => "uuid"},
-                "name" => %{"type" => "string", "description" => "The response name"}
+                "name" => %{"type" => "string", "description" => "The name"}
               }
             }
           }
@@ -161,11 +185,13 @@ defmodule Rolodex do
 
   alias Rolodex.{
     Config,
+    Field,
+    Response,
     Route,
     Schema
   }
 
-  @route_fields_with_schemas [:body, :headers, :path_params, :query_params, :responses]
+  @route_fields_with_refs [:body, :headers, :path_params, :query_params, :responses]
 
   @doc """
   Runs Rolodex and writes out documentation to the specified destination
@@ -198,8 +224,8 @@ defmodule Rolodex do
   @spec generate_documentation(Rolodex.Config.t()) :: String.t()
   def generate_documentation(%Config{processor: processor} = config) do
     routes = generate_routes(config)
-    schemas = generate_schemas(routes)
-    processor.process(config, routes, schemas)
+    refs = generate_refs(routes)
+    processor.process(config, routes, refs)
   end
 
   @doc """
@@ -218,36 +244,50 @@ defmodule Rolodex do
 
   @doc """
   Inspects the request and response parameter data for each `Rolodex.Route`.
-  From these routes, it collects a unique list of `Rolodex.Schema` references,
-  and serializes each via `Rolodex.Schema.to_map/1`. The serialized schemas will
-  be passed along to a `Rolodex.Processor` behaviour.
+  From these routes, it collects a unique list of `Rolodex.Response` and
+  `Rolodex.Schema` references. The serialized refs will be passed along to a
+  `Rolodex.Processor` behaviour.
   """
-  @spec generate_schemas([Rolodex.Route.t()]) :: map()
-  def generate_schemas(routes) do
+  @spec generate_refs([Rolodex.Route.t()]) :: map()
+  def generate_refs(routes) do
     routes
     |> Flow.from_enumerable()
-    |> Flow.reduce(fn -> %{} end, &schemas_for_route/2)
+    |> Flow.reduce(fn -> %{schemas: %{}, responses: %{}} end, &refs_for_route/2)
     |> Map.new()
   end
 
-  defp schemas_for_route(route, schemas) do
-    unserialized_refs_for_route(route, schemas)
-    |> Enum.reduce(schemas, fn ref, acc ->
-      Map.put(acc, ref, Schema.to_map(ref))
+  defp refs_for_route(route, all_refs) do
+    route
+    |> unserialized_refs_for_route(all_refs)
+    |> Enum.reduce(all_refs, fn
+      {:schema, ref}, %{schemas: schemas} = acc ->
+        %{acc | schemas: Map.put(schemas, ref, Schema.to_map(ref))}
+
+      {:response, ref}, %{responses: responses} = acc ->
+        %{acc | responses: Map.put(responses, ref, Response.to_map(ref))}
     end)
   end
 
-  # Looks at the route fields where users can provide `Rolodex.Schema` refs
-  # that it now needs to serialize. Performs a DFS on each field to collect any
-  # unserialized schema refs. We look at both the refs in the maps of data, PLUS
-  # refs nested within the schemas themselves. We recursively traverse this graph
-  # until we've collected all unseen refs for the current context.
-  defp unserialized_refs_for_route(route, schemas) do
-    # List of already serialized Rolodex.Schema refs in the route
-    serialized_refs = Map.keys(schemas)
+  # Looks at the route fields where users can provide refs that it now needs to
+  # serialize. Performs a DFS on each field to collect any unserialized refs. We
+  # look at both the refs in the maps of data, PLUS refs nested within the
+  # responses/schemas themselves. We recursively traverse this graph until we've
+  # collected all unseen refs for the current context.
+  defp unserialized_refs_for_route(route, %{schemas: schemas, responses: responses}) do
+    serialized_schema_refs =
+      schemas
+      |> Map.keys()
+      |> Enum.map(&{:schema, &1})
+
+    serialized_response_refs =
+      responses
+      |> Map.keys()
+      |> Enum.map(&{:response, &1})
+
+    serialized_refs = serialized_schema_refs ++ serialized_response_refs
 
     route
-    |> Map.take(@route_fields_with_schemas)
+    |> Map.take(@route_fields_with_refs)
     |> Enum.reduce(MapSet.new(), fn {_, field}, acc ->
       collect_unserialized_refs(field, acc, serialized_refs)
     end)
@@ -256,18 +296,23 @@ defmodule Rolodex do
 
   defp collect_unserialized_refs(field, result, serialized_refs) when is_map(field) do
     field
-    |> Schema.get_refs()
+    |> Field.get_refs()
     |> Enum.reduce(result, &collect_ref(&1, &2, serialized_refs))
   end
 
   defp collect_unserialized_refs(ref, result, serialized_refs) when is_atom(ref) do
-    case Schema.is_schema_module?(ref) do
-      true ->
+    case Field.get_ref_type(ref) do
+      :schema ->
         ref
         |> Schema.get_refs()
         |> Enum.reduce(result, &collect_ref(&1, &2, serialized_refs))
 
-      false ->
+      :response ->
+        ref
+        |> Response.get_refs()
+        |> Enum.reduce(result, &collect_ref(&1, &2, serialized_refs))
+
+      :error ->
         result
     end
   end
@@ -277,15 +322,22 @@ defmodule Rolodex do
   # If the current schema ref is unserialized, add to the MapSet of unserialized
   # refs, and then continue the recursive traversal
   defp collect_ref(ref, result, serialized_refs) do
-    seen_refs = Enum.to_list(result) ++ serialized_refs
+    ref_type = Field.get_ref_type(ref)
 
-    case ref in seen_refs do
-      true ->
+    cond do
+      {ref_type, ref} in (Enum.to_list(result) ++ serialized_refs) ->
         result
 
-      false ->
-        result = MapSet.put(result, ref)
+      ref_type == :schema ->
+        result = MapSet.put(result, {:schema, ref})
         collect_unserialized_refs(ref, result, serialized_refs)
+
+      ref_type == :response ->
+        result = MapSet.put(result, {:response, ref})
+        collect_unserialized_refs(ref, result, serialized_refs)
+
+      true ->
+        result
     end
   end
 end

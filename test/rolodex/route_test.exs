@@ -2,7 +2,14 @@ defmodule Rolodex.RouteTest do
   use ExUnit.Case
 
   alias Phoenix.Router
-  alias Rolodex.Mocks.{TestController, TestRouter, User}
+
+  alias Rolodex.Mocks.{
+    TestController,
+    TestRouter,
+    UserResponse,
+    PaginatedUsersResponse,
+    ErrorResponse
+  }
 
   alias Rolodex.{Config, Route}
 
@@ -92,18 +99,9 @@ defmodule Rolodex.RouteTest do
                  account_id: %{type: :uuid}
                },
                responses: %{
-                 200 => %{type: :ref, ref: User},
-                 201 => %{
-                   type: :list,
-                   of: [%{type: :ref, ref: User}]
-                 },
-                 404 => %{
-                   type: :object,
-                   properties: %{
-                     status: %{type: :integer},
-                     message: %{type: :string}
-                   }
-                 }
+                 200 => %{type: :ref, ref: UserResponse},
+                 201 => %{type: :ref, ref: PaginatedUsersResponse},
+                 404 => %{type: :ref, ref: ErrorResponse}
                },
                metadata: %{public: true},
                tags: ["foo", "bar"],
@@ -153,18 +151,9 @@ defmodule Rolodex.RouteTest do
                  account_id: %{type: :uuid}
                },
                responses: %{
-                 200 => %{type: :ref, ref: User},
-                 201 => %{
-                   type: :list,
-                   of: [%{type: :ref, ref: User}]
-                 },
-                 404 => %{
-                   type: :object,
-                   properties: %{
-                     status: %{type: :integer},
-                     message: %{type: :string}
-                   }
-                 }
+                 200 => %{type: :ref, ref: UserResponse},
+                 201 => %{type: :ref, ref: PaginatedUsersResponse},
+                 404 => %{type: :ref, ref: ErrorResponse}
                },
                metadata: %{public: true},
                tags: ["foo", "bar"],
