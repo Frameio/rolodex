@@ -2,22 +2,23 @@ defmodule Rolodex.Field do
   @moduledoc """
   Shared logic for parsing parameter fields.
 
-  `Rolodex.Response` and `Rolodex.Schema` each use this module to parse parameter
-  metadata. `new/1` transforms a bare map into a standardized parameter definition
-  format. `get_refs/1` takes a parameter map returned by `new/1 and traverses it,
-  searching for any refs to a Response or Schema.
+  `Rolodex.RequestBody`, `Rolodex.Response`, and `Rolodex.Schema` each use this
+  module to parse parameter metadata. `new/1` transforms a bare map into a
+  standardized parameter definition format. `get_refs/1` takes a parameter map
+  returned by `new/1 and traverses it, searching for any refs to a RequestBody,
+  Response, or Schema.
   """
 
-  alias Rolodex.{Response, Schema}
+  alias Rolodex.{RequestBody, Response, Schema}
 
-  @type ref_type :: :response | :schema
+  @type ref_type :: :request_body | :response | :schema
 
   @doc """
   Parses parameter data into maps with a standardized shape.
 
   Every field within the map returned will have a `type`. Some fields, like lists
   and objects, have other data nested within. Other fields hold references (called
-  `refs`) to `Rolodex.Response` or `Rolodex.Schema` modules.
+  `refs`) to `Rolodex.RequestBody`, `Rolodex.Response` or `Rolodex.Schema` modules.
 
   You can think of the output as an AST of parameter data that a `Rolodex.Processor`
   behaviour can serialize into documentation output.
@@ -141,6 +142,8 @@ defmodule Rolodex.Field do
     end
   end
 
+  def new(opts) when is_map(opts) and map_size(opts) == 0, do: %{}
+
   def new(opts) when is_map(opts), do: create_field(opts)
 
   defp create_field(%{type: :object, properties: props} = metadata) do
@@ -160,9 +163,11 @@ defmodule Rolodex.Field do
 
   defp create_field(%{type: type} = metadata) do
     cond do
-      Response.is_response_module?(type) -> %{type: :ref, ref: type}
-      Schema.is_schema_module?(type) -> %{type: :ref, ref: type}
-      true -> metadata
+      get_ref_type(type) in [:request_body, :response, :schema] ->
+        %{type: :ref, ref: type}
+
+      true ->
+        metadata
     end
   end
 
@@ -257,6 +262,7 @@ defmodule Rolodex.Field do
   @spec get_ref_type(module()) :: ref_type() | :error
   def get_ref_type(mod) do
     cond do
+      RequestBody.is_request_body_module?(mod) -> :request_body
       Response.is_response_module?(mod) -> :response
       Schema.is_schema_module?(mod) -> :schema
       true -> :error

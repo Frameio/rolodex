@@ -11,6 +11,8 @@ defmodule Rolodex.Config do
   - `router` (required) - `Phoenix.Router` module to inspect
   - `title` (required) - Title for your documentation output
   - `version` (required) - Your documentation's version
+  - `default_content_type` (default: "application/json") - Default content type
+  used for request body and response schemas
   - `filters` (default: `:none`) - A list of maps or functions used to filter
   out routes from your documentation. Filters are matched against `Rolodex.Route`
   structs in `Rolodex.Route.matches_filter?/2`.
@@ -62,6 +64,7 @@ defmodule Rolodex.Config do
     :title,
     :version,
     :writer,
+    default_content_type: "application/json",
     filters: :none,
     locale: "en",
     processor: Rolodex.Processors.Swagger,
@@ -69,6 +72,7 @@ defmodule Rolodex.Config do
   ]
 
   @type t :: %__MODULE__{
+          default_content_type: binary(),
           description: binary(),
           filters: [map() | (Rolodex.Route.t() -> boolean())] | :none,
           locale: binary(),

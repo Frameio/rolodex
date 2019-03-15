@@ -15,7 +15,8 @@ defmodule RolodexTest do
     User,
     UserResponse,
     PaginatedUsersResponse,
-    ErrorResponse
+    ErrorResponse,
+    UserRequestBody
   }
 
   describe "#run/1" do
@@ -32,6 +33,21 @@ defmodule RolodexTest do
 
       assert result == %{
                "components" => %{
+                 "requestBodies" => %{
+                   "UserRequestBody" => %{
+                     "content" => %{
+                       "application/json" => %{
+                         "examples" => %{
+                           "request" => %{"id" => "1"}
+                         },
+                         "schema" => %{
+                           "$ref" => "#/components/schemas/User"
+                         }
+                       }
+                     },
+                     "description" => "A single user entity request body"
+                   }
+                 },
                  "responses" => %{
                    "ErrorResponse" => %{
                      "content" => %{
@@ -198,20 +214,7 @@ defmodule RolodexTest do
                        }
                      ],
                      "requestBody" => %{
-                       "content" => %{
-                         "application/json" => %{
-                           "schema" => %{
-                             "properties" => %{
-                               "id" => %{"format" => "uuid", "type" => "string"},
-                               "name" => %{
-                                 "type" => "string",
-                                 "description" => "The name"
-                               }
-                             },
-                             "type" => "object"
-                           }
-                         }
-                       }
+                       "$ref" => "#/components/requestBodies/UserRequestBody"
                      },
                      "responses" => %{
                        "200" => %{
@@ -241,6 +244,42 @@ defmodule RolodexTest do
                      "requestBody" => %{},
                      "responses" => %{},
                      "summary" => ""
+                   },
+                   "put" => %{
+                     "parameters" => [],
+                     "requestBody" => %{
+                       "content" => %{
+                         "application/json" => %{
+                           "schema" => %{
+                             "type" => "object",
+                             "properties" => %{
+                               "id" => %{
+                                 "type" => "string",
+                                 "format" => "uuid"
+                               }
+                             }
+                           }
+                         }
+                       }
+                     },
+                     "responses" => %{
+                       "200" => %{
+                         "content" => %{
+                           "application/json" => %{
+                             "schema" => %{
+                               "type" => "object",
+                               "properties" => %{
+                                 "id" => %{
+                                   "type" => "string",
+                                   "format" => "uuid"
+                                 }
+                               }
+                             }
+                           }
+                         }
+                       }
+                     },
+                     "summary" => ""
                    }
                  }
                }
@@ -255,13 +294,7 @@ defmodule RolodexTest do
         |> Rolodex.generate_routes()
 
       assert result |> Enum.at(0) == %Route{
-               body: %{
-                 type: :object,
-                 properties: %{
-                   id: %{type: :uuid},
-                   name: %{type: :string, desc: "The name"}
-                 }
-               },
+               body: %{type: :ref, ref: UserRequestBody},
                desc: "It's a test!",
                headers: %{
                  "X-Request-Id" => %{type: :uuid, required: true}
@@ -306,7 +339,7 @@ defmodule RolodexTest do
         |> Rolodex.generate_routes()
         |> length()
 
-      assert num_routes == 2
+      assert num_routes == 3
     end
   end
 
@@ -315,13 +348,7 @@ defmodule RolodexTest do
       routes = [
         %Route{
           headers: %{"X-Request-Id" => %{type: :uuid}},
-          body: %{
-            type: :object,
-            properties: %{
-              id: %{type: :uuid},
-              nested: %{type: :ref, ref: User}
-            }
-          },
+          body: %{type: :ref, ref: UserRequestBody},
           query_params: %{id: %{type: :uuid}},
           path_params: %{nested: %{type: :ref, ref: NotFound}},
           responses: %{
@@ -339,9 +366,11 @@ defmodule RolodexTest do
         }
       ]
 
-      %{responses: responses, schemas: schemas} = Rolodex.generate_refs(routes)
+      %{responses: responses, request_bodies: request_bodies, schemas: schemas} =
+        Rolodex.generate_refs(routes)
 
       assert Map.keys(responses) == [UserResponse]
+      assert Map.keys(request_bodies) == [UserRequestBody]
       assert Map.keys(schemas) == [Comment, NotFound, Parent, User]
     end
 
@@ -359,8 +388,10 @@ defmodule RolodexTest do
         }
       ]
 
-      %{responses: responses, schemas: schemas} = Rolodex.generate_refs(routes)
+      %{responses: responses, request_bodies: request_bodies, schemas: schemas} =
+        Rolodex.generate_refs(routes)
 
+      assert Map.keys(request_bodies) == []
       assert Map.keys(responses) == [UserResponse]
 
       assert Map.keys(schemas) == [
