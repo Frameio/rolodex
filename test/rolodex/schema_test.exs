@@ -31,9 +31,11 @@ defmodule Rolodex.SchemaTest do
 
   describe "#field/3 macro" do
     test "It generates getters" do
-      assert User.__field__(:id) == {:id, %{type: :uuid, desc: "The id of the user"}}
+      assert User.__field__(:id) ==
+               {:id, %{type: :uuid, desc: "The id of the user", required: true}}
 
-      assert User.__field__(:email) == {:email, %{type: :string, desc: "The email of the user"}}
+      assert User.__field__(:email) ==
+               {:email, %{type: :string, desc: "The email of the user", required: true}}
 
       assert User.__field__(:comment) == {:comment, %{type: :ref, ref: Comment}}
       assert User.__field__(:parent) == {:parent, %{type: :ref, ref: Parent}}
@@ -70,8 +72,8 @@ defmodule Rolodex.SchemaTest do
                type: :object,
                desc: "A user record",
                properties: %{
-                 id: %{desc: "The id of the user", type: :uuid},
-                 email: %{desc: "The email of the user", type: :string},
+                 id: %{desc: "The id of the user", type: :uuid, required: true},
+                 email: %{desc: "The email of the user", type: :string, required: true},
                  parent: %{type: :ref, ref: Parent},
                  comment: %{type: :ref, ref: Comment},
                  comments: %{

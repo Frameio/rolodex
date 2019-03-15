@@ -4,6 +4,7 @@ defmodule Rolodex.Processors.Swagger do
 
   @schema_metadata_keys [
     :default,
+    :enum,
     :format,
     :maximum,
     :minimum,
@@ -89,13 +90,16 @@ defmodule Rolodex.Processors.Swagger do
   end
 
   defp process_param({name, param}, location) do
-    %{
+    result = %{
       in: location,
       name: name,
-      description: Map.get(param, :desc, ""),
-      required: Map.get(param, :required, false),
       schema: process_schema_field(param)
     }
+
+    case Map.get(param, :required, false) do
+      true -> Map.put(result, :required, true)
+      false -> result
+    end
   end
 
   defp process_body(%Route{body: body}) when map_size(body) == 0, do: body
@@ -148,27 +152,34 @@ defmodule Rolodex.Processors.Swagger do
     %{"$ref" => ref_path(ref)}
   end
 
-  defp process_schema_field(%{type: :object, properties: props}) do
-    %{
+  defp process_schema_field(%{type: :object, properties: props} = object_field) do
+    object = %{
       type: :object,
       properties: props |> Map.new(fn {k, v} -> {k, process_schema_field(v)} end)
     }
+
+    props
+    |> collect_required_object_props()
+    |> set_required_object_props(object)
+    |> put_description(object_field)
   end
 
-  defp process_schema_field(%{type: :list, of: items}) when length(items) == 1 do
+  defp process_schema_field(%{type: :list, of: items} = list_field) when length(items) == 1 do
     %{
       type: :array,
       items: items |> Enum.at(0) |> process_schema_field()
     }
+    |> put_description(list_field)
   end
 
-  defp process_schema_field(%{type: :list, of: items}) do
+  defp process_schema_field(%{type: :list, of: items} = list_field) do
     %{
       type: :array,
       items: %{
         oneOf: items |> Enum.map(&process_schema_field/1)
       }
     }
+    |> put_description(list_field)
   end
 
   defp process_schema_field(%{type: :one_of, of: items}) do
@@ -183,7 +194,27 @@ defmodule Rolodex.Processors.Swagger do
     |> process_schema_field()
   end
 
-  defp process_schema_field(field), do: Map.take(field, @schema_metadata_keys)
+  defp process_schema_field(field) do
+    field
+    |> Map.take(@schema_metadata_keys)
+    |> put_description(field)
+  end
+
+  ## Helpers ##
+
+  defp collect_required_object_props(props), do: Enum.reduce(props, [], &do_props_collect/2)
+
+  defp do_props_collect({k, %{required: true}}, acc), do: [k | acc]
+  defp do_props_collect(_, acc), do: acc
+
+  defp set_required_object_props([], object), do: object
+  defp set_required_object_props(required, object), do: Map.put(object, :required, required)
+
+  defp put_description(field, %{desc: desc}) when is_binary(desc) and desc != "" do
+    Map.put(field, :description, desc)
+  end
+
+  defp put_description(field, _), do: field
 
   defp ref_path(mod), do: "#/components/schemas/#{mod.__schema__(:name)}"
 end

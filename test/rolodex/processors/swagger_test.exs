@@ -85,10 +85,17 @@ defmodule Rolodex.Processors.SwaggerTest do
                  "schemas" => %{
                    "User" => %{
                      "type" => "object",
+                     "description" => "A user record",
+                     "required" => ["id", "email"],
                      "properties" => %{
-                       "id" => %{"type" => "string", "format" => "uuid"},
+                       "id" => %{
+                         "type" => "string",
+                         "format" => "uuid",
+                         "description" => "The id of the user"
+                       },
                        "email" => %{
-                         "type" => "string"
+                         "type" => "string",
+                         "description" => "The email of the user"
                        },
                        "comment" => %{
                          "$ref" => "#/components/schemas/Comment"
@@ -101,6 +108,7 @@ defmodule Rolodex.Processors.SwaggerTest do
                        },
                        "comments_of_many_types" => %{
                          "type" => "array",
+                         "description" => "List of text or comment",
                          "items" => %{
                            "oneOf" => [
                              %{
@@ -180,7 +188,7 @@ defmodule Rolodex.Processors.SwaggerTest do
             update: %{type: :boolean}
           },
           path_params: %{
-            account_id: %{type: :uuid}
+            account_id: %{type: :uuid, desc: "The account id"}
           },
           responses: %{
             200 => %{type: :ref, ref: User},
@@ -202,7 +210,6 @@ defmodule Rolodex.Processors.SwaggerTest do
                      %{
                        in: :header,
                        name: "X-Request-Id",
-                       description: "",
                        required: true,
                        schema: %{
                          type: :string,
@@ -212,17 +219,15 @@ defmodule Rolodex.Processors.SwaggerTest do
                      %{
                        in: :path,
                        name: :account_id,
-                       description: "",
-                       required: false,
                        schema: %{
                          type: :string,
-                         format: :uuid
+                         format: :uuid,
+                         description: "The account id"
                        }
                      },
                      %{
                        in: :query,
                        name: :id,
-                       description: "",
                        required: true,
                        schema: %{
                          type: :integer,
@@ -234,8 +239,6 @@ defmodule Rolodex.Processors.SwaggerTest do
                      %{
                        in: :query,
                        name: :update,
-                       description: "",
-                       required: false,
                        schema: %{
                          type: :boolean
                        }
@@ -370,10 +373,17 @@ defmodule Rolodex.Processors.SwaggerTest do
       assert Swagger.process_schemas(schemas) == %{
                "User" => %{
                  type: :object,
+                 description: "A user record",
+                 required: [:id, :email],
                  properties: %{
-                   id: %{type: :string, format: :uuid},
+                   id: %{
+                     type: :string,
+                     format: :uuid,
+                     description: "The id of the user"
+                   },
                    email: %{
-                     type: :string
+                     type: :string,
+                     description: "The email of the user"
                    },
                    comment: %{
                      "$ref" => "#/components/schemas/Comment"
@@ -386,6 +396,7 @@ defmodule Rolodex.Processors.SwaggerTest do
                    },
                    comments_of_many_types: %{
                      type: :array,
+                     description: "List of text or comment",
                      items: %{
                        oneOf: [
                          %{
@@ -412,6 +423,7 @@ defmodule Rolodex.Processors.SwaggerTest do
                },
                "NotFound" => %{
                  type: :object,
+                 description: "Not found response",
                  properties: %{
                    message: %{
                      type: :string

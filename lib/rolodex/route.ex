@@ -289,6 +289,7 @@ defmodule Rolodex.Route do
 
   alias Rolodex.{
     Config,
+    PipelineConfig,
     Schema
   }
 
@@ -432,7 +433,7 @@ defmodule Rolodex.Route do
     Enum.reduce(pipe_through, %{}, fn pt, acc ->
       pipeline_config =
         pipelines
-        |> Map.get(pt, %{})
+        |> Map.get(pt, %PipelineConfig{})
         |> Map.from_struct()
         |> parse_param_fields()
 
