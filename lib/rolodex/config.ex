@@ -1,11 +1,40 @@
 defmodule Rolodex.Config do
   @moduledoc """
-  Configuration for Rolodex.
+  A behaviour for defining Rolodex config and functions to parse config.
 
-  You can define this config in your `config/<env>.exs` files, keyed by
-  `:rolodex`, and it will be passed into `new/1` in `Mix.Tasks.GenDocs.run/1`.
+  To define your config for Rolodex, `use` Rolodex.Config in a module and
+  override the default behaviour functions. Then, tell Rolodex the name of your
+  config module in your project's configuration files.
 
-  ## Options
+      # Your config definition
+      defmodule MyRolodexConfig do
+        use Rolodex.Config
+
+        def spec() do
+          [
+            title: "My API",
+            description: "My API's description",
+            version: "1.0.0"
+          ]
+        end
+      end
+
+      # In `config.exs`
+      config :rolodex, module: MyRolodexConfig
+
+  ## Usage
+
+  Your Rolodex config module exports three functions, which each return an empty
+  list by default:
+
+  - `spec/0` - Basic configuration for your Rolodex setup
+  - `auth_spec/0` - Definitions for shared auth patterns to be used in routes.
+  Auth definitions should follow the OpenAPI pattern, but keys can use snake_case
+  and will be converted to camelCase for the OpenAPI target.
+  - `pipelines_config/0` - Sets any shared defaults for your Phoenix Router
+  pipelines. See `Rolodex.PipelineConfig` for details about valid options and defaults
+
+  For `spec/0`, the following are valid options:
 
   - `description` (required) - Description for your documentation output
   - `router` (required) - `Phoenix.Router` module to inspect
@@ -13,6 +42,8 @@ defmodule Rolodex.Config do
   - `version` (required) - Your documentation's version
   - `default_content_type` (default: "application/json") - Default content type
   used for request body and response schemas
+  - `file_name` (default: "api.json") - The name of the output file with the processed
+  documentation
   - `filters` (default: `:none`) - A list of maps or functions used to filter
   out routes from your documentation. Filters are matched against `Rolodex.Route`
   structs in `Rolodex.Route.matches_filter?/2`.
@@ -22,33 +53,68 @@ defmodule Rolodex.Config do
   - `processor` (default: `Rolodex.Processors.Swagger`) - Module implementing
   the `Rolodex.Processor` behaviour
   - `server_urls` (default: []) - List of base url(s) for your API paths
-  - `writer` (default: `Rolodex.WriterConfig.t()`) - Destination
-  for writing and a module implementing the `Rolodex.Writer` behaviour
+  - `writer` (default: `Rolodex.Writers.FileWriter`) - Module implementing the
+  `Rolodex.Writer` behaviour to be used to write out the docs
 
-  ## Example
+  ## Full Example
 
-      config :rolodex,
-        title: "MyApp",
-        description: "An example",
-        version: "1.0.0",
-        router: MyRouter,
-        processor: Rolodex.Processors.Swagger,
-        writer: [
-          file_name: "my_docs.json",
-          module: Rolodex.Writers.FileWriter
-        ],
-        pipelines: [
-          api: [
-            headers: %{"X-Request-Id" => :uuid}
+      defmodule MyRolodexConfig do
+        use Rolodex.Config
+
+        def spec() do
+          [
+            title: "My API",
+            description: "My API's description",
+            version: "1.0.0",
+            default_content_type: "application/json+api",
+            file_name: "api.json",
+            filters: :none,
+            locale: "en",
+            processor: MyProcessor,
+            server_urls: ["https://myapp.io"],
+            router: MyRouter
           ]
-        ]
+        end
 
+        def auth_spec() do
+          [
+            BearerAuth: [
+              type: "http",
+              scheme: "bearer"
+            ],
+            OAuth: [
+              type: "oauth2",
+              flows: [
+                authorization_code: [
+                  authorization_url: "https://example.io/oauth2/authorize",
+                  token_url: "https://example.io/oauth2/token",
+                  scopes: [
+                    "user.read",
+                    "account.read",
+                    "account.write"
+                  ]
+                ]
+              ]
+            ]
+          ]
+        end
+
+        def pipelines_spec() do
+          [
+            api: [
+              headers: ["X-Request-ID": :uuid],
+              query_params: [includes: :string]
+            ]
+          ]
+        end
+      end
   """
 
-  alias Rolodex.{PipelineConfig, WriterConfig}
+  alias Rolodex.{PipelineConfig, Utils}
 
   @enforce_keys [
     :description,
+    :file_name,
     :locale,
     :processor,
     :router,
@@ -63,76 +129,70 @@ defmodule Rolodex.Config do
     :router,
     :title,
     :version,
-    :writer,
     default_content_type: "application/json",
+    file_name: "api.json",
     filters: :none,
     locale: "en",
     processor: Rolodex.Processors.Swagger,
-    server_urls: []
+    auth: %{},
+    server_urls: [],
+    writer: Rolodex.Writers.FileWriter
   ]
 
   @type t :: %__MODULE__{
           default_content_type: binary(),
           description: binary(),
+          file_name: binary(),
           filters: [map() | (Rolodex.Route.t() -> boolean())] | :none,
           locale: binary(),
           pipelines: pipeline_configs() | nil,
           processor: module(),
           router: module(),
+          auth: map(),
           server_urls: [binary()],
           title: binary(),
           version: binary(),
-          writer: WriterConfig.t()
+          writer: module()
         }
 
   @type pipeline_configs :: %{
-          optional(:atom) => Rolodex.PipelineConfig.t()
+          optional(:atom) => PipelineConfig.t()
         }
 
-  @spec new(list()) :: Rolodex.Config.t()
-  def new(kwl \\ []) do
-    opts =
-      kwl
-      |> Map.new()
-      |> set_writer_config()
-      |> set_pipelines_config()
+  @callback spec() :: keyword() | map()
+  @callback pipelines_spec() :: keyword() | map()
 
-    struct(__MODULE__, opts)
+  defmacro __using__(_) do
+    quote do
+      @behaviour Rolodex.Config
+
+      def spec(), do: %{}
+      def pipelines_spec(), do: %{}
+      def auth_spec(), do: %{}
+
+      defoverridable spec: 0, pipelines_spec: 0, auth_spec: 0
+    end
   end
 
-  defp set_writer_config(opts), do: Map.put(opts, :writer, get_writer_config(opts))
-
-  defp get_writer_config(%{writer: writer}), do: WriterConfig.new(writer)
-  defp get_writer_config(_), do: WriterConfig.new()
-
-  defp set_pipelines_config(opts), do: Map.put(opts, :pipelines, get_pipelines_config(opts))
-
-  defp get_pipelines_config(%{pipelines: pipelines}) do
-    Map.new(pipelines, fn {k, v} -> {k, PipelineConfig.new(v)} end)
+  @spec new(module()) :: t()
+  def new(module) do
+    module.spec()
+    |> Map.new()
+    |> set_pipelines_config(module)
+    |> set_auth_config(module)
+    |> Utils.to_struct(__MODULE__)
   end
 
-  defp get_pipelines_config(_), do: %{}
-end
+  defp set_pipelines_config(opts, module) do
+    pipelines =
+      module.pipelines_spec()
+      |> Map.new(fn {k, v} -> {k, PipelineConfig.new(v)} end)
 
-defmodule Rolodex.WriterConfig do
-  @moduledoc """
-  Defines writer config params.
+    Map.put(opts, :pipelines, pipelines)
+  end
 
-  - `file_name` (default: `openapi.json`) - name of the docs output file, it will
-  be written to the root directory of your project
-  - `module` (default: `Rolodex.Writers.FileWriter`) - the writer behaviour to use
-  """
-
-  defstruct file_name: "openapi.json",
-            module: Rolodex.Writers.FileWriter
-
-  @type t :: %__MODULE__{
-          file_name: binary(),
-          module: module()
-        }
-
-  @spec new(list() | map()) :: t()
-  def new(opts \\ []), do: struct(__MODULE__, opts)
+  def set_auth_config(opts, module),
+    do: Map.put(opts, :auth, module.auth_spec() |> Utils.to_map_deep())
 end
 
 defmodule Rolodex.PipelineConfig do
@@ -157,13 +217,17 @@ defmodule Rolodex.PipelineConfig do
       }
   """
 
-  defstruct body: %{},
+  alias Rolodex.Utils
+
+  defstruct auth: [],
+            body: %{},
             headers: %{},
             path_params: %{},
             query_params: %{},
             responses: %{}
 
   @type t :: %__MODULE__{
+          auth: list() | map(),
           body: map(),
           headers: map(),
           path_params: map(),
@@ -173,7 +237,8 @@ defmodule Rolodex.PipelineConfig do
 
   @spec new(list() | map()) :: t()
   def new(params \\ []) do
-    opts = Map.new(params, fn {k, v} -> {k, Map.new(v)} end)
-    struct(__MODULE__, opts)
+    params
+    |> Map.new(fn {k, v} -> {k, Utils.to_map_deep(v)} end)
+    |> Utils.to_struct(__MODULE__)
   end
 end

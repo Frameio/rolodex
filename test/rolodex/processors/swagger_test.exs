@@ -18,15 +18,47 @@ defmodule Rolodex.Processors.SwaggerTest do
     UserResponse
   }
 
+  defmodule(BasicConfig, do: use(Rolodex.Config))
+
+  defmodule FullConfig do
+    use Rolodex.Config
+
+    def spec() do
+      [
+        description: "foo",
+        title: "bar",
+        version: "1",
+        server_urls: ["https://api.example.com"]
+      ]
+    end
+
+    def auth_spec() do
+      [
+        JWTAuth: [
+          type: "http",
+          scheme: "bearer"
+        ],
+        OAuth: [
+          type: "oauth2",
+          flows: [
+            authorization_code: [
+              authorization_url: "https://applications.frame.io/oauth2/authorize",
+              token_url: "https://applications.frame.io/oauth2/token",
+              scopes: [
+                "user.read",
+                "account.read",
+                "account.write"
+              ]
+            ]
+          ]
+        ]
+      ]
+    end
+  end
+
   describe "#process/3" do
     test "Processes config, routes, and schemas into a serialized JSON blob" do
-      config =
-        Config.new(
-          description: "foo",
-          title: "bar",
-          version: "1",
-          server_urls: ["https://api.example.com"]
-        )
+      config = Config.new(FullConfig)
 
       refs = %{
         request_bodies: %{
@@ -42,6 +74,10 @@ defmodule Rolodex.Processors.SwaggerTest do
 
       routes = [
         %Route{
+          auth: %{
+            JWTAuth: [],
+            OAuth: ["user.read"]
+          },
           desc: "It does a thing",
           path: "/foo",
           verb: :get,
@@ -66,6 +102,10 @@ defmodule Rolodex.Processors.SwaggerTest do
                  "/foo" => %{
                    "get" => %{
                      "summary" => "It does a thing",
+                     "security" => [
+                       %{"JWTAuth" => []},
+                       %{"OAuth" => ["user.read"]}
+                     ],
                      "parameters" => [],
                      "requestBody" => %{
                        "$ref" => "#/components/requestBodies/UserRequestBody"
@@ -158,6 +198,26 @@ defmodule Rolodex.Processors.SwaggerTest do
                        }
                      }
                    }
+                 },
+                 "securitySchemes" => %{
+                   "JWTAuth" => %{
+                     "type" => "http",
+                     "scheme" => "bearer"
+                   },
+                   "OAuth" => %{
+                     "type" => "oauth2",
+                     "flows" => %{
+                       "authorizationCode" => %{
+                         "authorizationUrl" => "https://applications.frame.io/oauth2/authorize",
+                         "tokenUrl" => "https://applications.frame.io/oauth2/token",
+                         "scopes" => [
+                           "user.read",
+                           "account.read",
+                           "account.write"
+                         ]
+                       }
+                     }
+                   }
                  }
                }
              }
@@ -166,13 +226,7 @@ defmodule Rolodex.Processors.SwaggerTest do
 
   describe "#process_headers/1" do
     test "It returns a map of top-level metadata" do
-      config =
-        Config.new(
-          description: "foo",
-          title: "bar",
-          version: "1",
-          server_urls: ["https://api.example.com"]
-        )
+      config = Config.new(FullConfig)
 
       headers = Swagger.process_headers(config)
 
@@ -193,6 +247,7 @@ defmodule Rolodex.Processors.SwaggerTest do
       routes = [
         %Route{
           desc: "It does a thing",
+          auth: %{JWTAuth: []},
           headers: %{
             "X-Request-Id" => %{type: :uuid, required: true}
           },
@@ -220,12 +275,13 @@ defmodule Rolodex.Processors.SwaggerTest do
         }
       ]
 
-      processed = Swagger.process_routes(routes, Config.new())
+      processed = Swagger.process_routes(routes, Config.new(BasicConfig))
 
       assert processed == %{
                "/foo" => %{
                  get: %{
                    summary: "It does a thing",
+                   security: [%{JWTAuth: []}],
                    parameters: [
                      %{
                        in: :header,
@@ -303,10 +359,11 @@ defmodule Rolodex.Processors.SwaggerTest do
         }
       ]
 
-      assert Swagger.process_routes(routes, Config.new()) == %{
+      assert Swagger.process_routes(routes, Config.new(BasicConfig)) == %{
                "/foo" => %{
                  get: %{
                    summary: "GET /foo",
+                   security: [],
                    requestBody: %{},
                    parameters: [],
                    responses: %{
@@ -319,6 +376,7 @@ defmodule Rolodex.Processors.SwaggerTest do
                "/foo/{id}" => %{
                  get: %{
                    summary: "GET /foo/{id}",
+                   security: [],
                    requestBody: %{},
                    parameters: [],
                    responses: %{
@@ -329,6 +387,7 @@ defmodule Rolodex.Processors.SwaggerTest do
                  },
                  post: %{
                    summary: "POST /foo/{id}",
+                   security: [],
                    requestBody: %{},
                    parameters: [],
                    responses: %{
@@ -356,7 +415,7 @@ defmodule Rolodex.Processors.SwaggerTest do
         }
       }
 
-      assert Swagger.process_refs(refs) == %{
+      assert Swagger.process_refs(refs, Config.new(FullConfig)) == %{
                requestBodies: %{
                  "UserRequestBody" => %{
                    content: %{
@@ -431,6 +490,26 @@ defmodule Rolodex.Processors.SwaggerTest do
                      },
                      parent: %{
                        "$ref" => "#/components/schemas/Parent"
+                     }
+                   }
+                 }
+               },
+               securitySchemes: %{
+                 "JWTAuth" => %{
+                   "type" => "http",
+                   "scheme" => "bearer"
+                 },
+                 "OAuth" => %{
+                   "type" => "oauth2",
+                   "flows" => %{
+                     "authorizationCode" => %{
+                       "authorizationUrl" => "https://applications.frame.io/oauth2/authorize",
+                       "tokenUrl" => "https://applications.frame.io/oauth2/token",
+                       "scopes" => [
+                         "user.read",
+                         "account.read",
+                         "account.write"
+                       ]
                      }
                    }
                  }

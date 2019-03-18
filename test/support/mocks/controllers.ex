@@ -7,6 +7,11 @@ defmodule Rolodex.Mocks.TestController do
   }
 
   @doc [
+    auth: [
+      :JWTAuth,
+      TokenAuth: ["user.read"],
+      OAuth: ["user.read"]
+    ],
     headers: %{"X-Request-Id" => %{type: :uuid, required: true}},
     query_params: %{
       id: %{
@@ -34,6 +39,7 @@ defmodule Rolodex.Mocks.TestController do
   def index(_, _), do: nil
 
   @doc [
+    auth: :JWTAuth,
     headers: %{"X-Request-Id" => :string}
   ]
   def conflicted(_, _), do: nil

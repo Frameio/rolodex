@@ -49,6 +49,7 @@ defmodule Rolodex do
       # Your controller
       defmodule MyController do
         @doc [
+          auth: :BearerAuth,
           headers: ["X-Request-ID": uuid],
           query_params: [include: :string],
           path_params: [user_id: :uuid],
@@ -99,20 +100,42 @@ defmodule Rolodex do
         end
       end
 
-      # In mix.exs
-      config :rolodex,
-        title: "MyApp",
-        description: "An example",
-        version: "1.0.0",
-        router: MyRouter,
-        pipelines: [
-          api: [
-            headers: ["Include-Meta": :boolean]
+      # Your Rolodex config
+      defmodule MyConfig do
+        use Rolodex.Config
+
+        def spec() do
+          [
+            title: "MyApp",
+            description: "An example",
+            version: "1.0.0",
+            router: MyRouter
           ]
-        ]
+        end
+
+        def auth_spec() do
+          [
+            BearerAuth: [
+              type: "http",
+              scheme: "bearer"
+            ]
+          ]
+        end
+
+        def pipelines_spec() do
+          [
+            api: [
+              headers: ["Include-Meta": :boolean]
+            ]
+          ]
+        end
+      end
+
+      # In mix.exs
+      config :rolodex, module: MyConfig
 
       # Then...
-      Application.get_all_env(:rolodex)
+      Application.get_all_env(:rolodex)[:module]
       |> Rolodex.Config.new()
       |> Rolodex.run()
 
@@ -127,6 +150,7 @@ defmodule Rolodex do
         "paths" => %{
           "/api/test" => %{
             "get" => %{
+              "security" => [%{"BearerAuth" => []}],
               "metadata" => %{"public" => true},
               "parameters" => [
                 %{
@@ -208,6 +232,12 @@ defmodule Rolodex do
                 "name" => %{"type" => "string", "description" => "The name"}
               }
             }
+          },
+          "securitySchemes" => %{
+            "BearerAuth" => %{
+              "type" => "http",
+              "scheme" => "bearer"
+            }
           }
         }
       }
@@ -234,8 +264,6 @@ defmodule Rolodex do
   end
 
   defp write(processed, %Config{writer: writer} = config) do
-    writer = Map.get(writer, :module)
-
     with {:ok, device} <- writer.init(config),
          :ok <- writer.write(device, processed),
          :ok <- writer.close(device) do

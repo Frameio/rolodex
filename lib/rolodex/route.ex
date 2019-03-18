@@ -61,6 +61,27 @@ defmodule Rolodex.Route do
         ]
       ]
 
+  * **`auth`** (Default: `%{}`)
+
+  Define auth requirements for the route. Valid input is a single atom or a list
+  of auth patterns. We only support logical OR auth definitions: if you provide
+  a list of auth patterns, Rolodex will serialize this as any one of those auth
+  patterns is required.
+
+      @doc [
+        # Simplest: auth pattern with no scope patterns
+        auth: :MySimpleAuth,
+
+        # One auth pattern with some scopes
+        auth: [OAuth: ["user.read"]],
+
+        # Multiple auth patterns
+        auth: [
+          :MySimpleAuth,
+          OAuth: ["user.read"]
+        ]
+      ]
+
   * **`headers`** (Default: `%{}`)
 
   Request headers. Valid input is a map or keyword list, where each key is a
@@ -293,12 +314,14 @@ defmodule Rolodex.Route do
   alias Rolodex.{
     Config,
     PipelineConfig,
-    Field
+    Field,
+    Utils
   }
 
   defstruct [
     :path,
     :verb,
+    auth: %{},
     body: %{},
     desc: "",
     headers: %{},
@@ -313,6 +336,7 @@ defmodule Rolodex.Route do
   @phoenix_route_params [:path, :pipe_through, :verb]
 
   @type t :: %__MODULE__{
+          auth: map(),
           body: map(),
           desc: binary(),
           headers: %{},
@@ -361,13 +385,11 @@ defmodule Rolodex.Route do
       |> Map.take(@phoenix_route_params)
       |> deep_merge(pipeline_config)
       |> deep_merge(action_doc_data)
-      |> to_struct()
+      |> Utils.to_struct(__MODULE__)
     else
       _ -> nil
     end
   end
-
-  defp to_struct(data), do: struct(__MODULE__, data)
 
   # Uses `Code.fetch_docs/1` to lookup `@doc` annotations for the controller action
   defp fetch_route_docs(phoenix_route, config) do
@@ -394,15 +416,20 @@ defmodule Rolodex.Route do
   end
 
   defp parse_param_fields(metadata) do
-    metadata =
-      case Map.get(metadata, :body, nil) do
-        nil ->
-          metadata
+    metadata
+    |> parse_body()
+    |> parse_params()
+    |> parse_auth()
+  end
 
-        body ->
-          %{metadata | body: Field.new(body)}
-      end
+  defp parse_body(metadata) do
+    case Map.get(metadata, :body) do
+      nil -> metadata
+      body -> %{metadata | body: Field.new(body)}
+    end
+  end
 
+  defp parse_params(metadata) do
     [:headers, :path_params, :query_params, :responses]
     |> Enum.reduce(metadata, fn key, acc ->
       fields =
@@ -413,6 +440,26 @@ defmodule Rolodex.Route do
       Map.put(acc, key, fields)
     end)
   end
+
+  defp parse_auth(metadata) do
+    auth =
+      metadata
+      |> Map.get(:auth, %{})
+      |> do_parse_auth()
+      |> Map.new()
+
+    Map.put(metadata, :auth, auth)
+  end
+
+  defp do_parse_auth(auth, level \\ 0)
+  defp do_parse_auth({key, value}, _), do: {key, value}
+  defp do_parse_auth(auth, 0) when is_atom(auth), do: [{auth, []}]
+  defp do_parse_auth(auth, _) when is_atom(auth), do: {auth, []}
+
+  defp do_parse_auth(auth, level) when is_list(auth),
+    do: Enum.map(auth, &do_parse_auth(&1, level + 1))
+
+  defp do_parse_auth(auth, _), do: auth
 
   defp parse_description(:none, _), do: ""
 
