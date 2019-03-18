@@ -19,8 +19,9 @@ defmodule Rolodex do
   ## Features and resources
 
   - **Reusable schemas** - See `Rolodex.Schema` for details on how define reusable
-  parameter schemas. See `Rolodex.Response` for details on how to use schemas in
-  your API response definitions.
+  parameter schemas. See `Rolodex.RequestBody` for details on how to use schemas
+  in your API request body definitions. See `Rolodex.Response` for details on
+  how to use schemas in your API response definitions.
   - **Structured annotations** - See `Rolodex.Route` for details on how to format
   annotations on your API route action functions for the Rolodex parser to handle
   - **Generic serialization** - The `Rolodex.Processor` behaviour encapsulates
@@ -49,15 +50,29 @@ defmodule Rolodex do
       defmodule MyController do
         @doc [
           headers: ["X-Request-ID": uuid],
-          body: [id: :uuid],
           query_params: [include: :string],
           path_params: [user_id: :uuid],
+          body: MyRequestBody,
           responses: %{200 => MyResponse},
           metadata: [public: true],
           tags: ["foo", "bar"]
         ]
         @doc "My index action"
         def index(conn, _), do: conn
+      end
+
+      # Your request body
+      defmodule MyRequestBody do
+        use Rolodex.RequestBody
+
+        request_body "MyRequestBody" do
+          desc "A request body"
+
+          content "application/json" do
+            schema MySchema
+            example :request, %{id: "123", name: "Ada Lovelace"}
+          end
+        end
       end
 
       # Your response
@@ -154,6 +169,21 @@ defmodule Rolodex do
           }
         },
         "components" => %{
+          "requestBodies" => %{
+            "MyRequestBody" => %{
+              "description" => "A request body",
+              "content" => %{
+                "application/json" => %{
+                  "schema" => %{
+                    "$ref" => "#/components/schemas/MySchema"
+                  },
+                  "examples" => %{
+                    "request" => %{"id" => "123", "name" => "Ada Lovelace"}
+                  }
+                }
+              }
+            }
+          },
           "responses" => %{
             "MyResponse" => %{
               "description" => "A response",
@@ -186,6 +216,7 @@ defmodule Rolodex do
   alias Rolodex.{
     Config,
     Field,
+    RequestBody,
     Response,
     Route,
     Schema
@@ -244,15 +275,18 @@ defmodule Rolodex do
 
   @doc """
   Inspects the request and response parameter data for each `Rolodex.Route`.
-  From these routes, it collects a unique list of `Rolodex.Response` and
-  `Rolodex.Schema` references. The serialized refs will be passed along to a
-  `Rolodex.Processor` behaviour.
+  From these routes, it collects a unique list of `Rolodex.RequestBody`,
+  `Rolodex.Response`, and `Rolodex.Schema` references. The serialized refs will
+  be passed along to a `Rolodex.Processor` behaviour.
   """
   @spec generate_refs([Rolodex.Route.t()]) :: map()
   def generate_refs(routes) do
     routes
     |> Flow.from_enumerable()
-    |> Flow.reduce(fn -> %{schemas: %{}, responses: %{}} end, &refs_for_route/2)
+    |> Flow.reduce(
+      fn -> %{schemas: %{}, responses: %{}, request_bodies: %{}} end,
+      &refs_for_route/2
+    )
     |> Map.new()
   end
 
@@ -265,6 +299,9 @@ defmodule Rolodex do
 
       {:response, ref}, %{responses: responses} = acc ->
         %{acc | responses: Map.put(responses, ref, Response.to_map(ref))}
+
+      {:request_body, ref}, %{request_bodies: request_bodies} = acc ->
+        %{acc | request_bodies: Map.put(request_bodies, ref, RequestBody.to_map(ref))}
     end)
   end
 
@@ -273,18 +310,8 @@ defmodule Rolodex do
   # look at both the refs in the maps of data, PLUS refs nested within the
   # responses/schemas themselves. We recursively traverse this graph until we've
   # collected all unseen refs for the current context.
-  defp unserialized_refs_for_route(route, %{schemas: schemas, responses: responses}) do
-    serialized_schema_refs =
-      schemas
-      |> Map.keys()
-      |> Enum.map(&{:schema, &1})
-
-    serialized_response_refs =
-      responses
-      |> Map.keys()
-      |> Enum.map(&{:response, &1})
-
-    serialized_refs = serialized_schema_refs ++ serialized_response_refs
+  defp unserialized_refs_for_route(route, all_refs) do
+    serialized_refs = serialized_refs_list(all_refs)
 
     route
     |> Map.take(@route_fields_with_refs)
@@ -312,6 +339,11 @@ defmodule Rolodex do
         |> Response.get_refs()
         |> Enum.reduce(result, &collect_ref(&1, &2, serialized_refs))
 
+      :request_body ->
+        ref
+        |> RequestBody.get_refs()
+        |> Enum.reduce(result, &collect_ref(&1, &2, serialized_refs))
+
       :error ->
         result
     end
@@ -328,16 +360,35 @@ defmodule Rolodex do
       {ref_type, ref} in (Enum.to_list(result) ++ serialized_refs) ->
         result
 
-      ref_type == :schema ->
-        result = MapSet.put(result, {:schema, ref})
-        collect_unserialized_refs(ref, result, serialized_refs)
-
-      ref_type == :response ->
-        result = MapSet.put(result, {:response, ref})
+      ref_type in [:schema, :response, :request_body] ->
+        result = MapSet.put(result, {ref_type, ref})
         collect_unserialized_refs(ref, result, serialized_refs)
 
       true ->
         result
     end
+  end
+
+  defp serialized_refs_list(%{
+         schemas: schemas,
+         responses: responses,
+         request_bodies: request_bodies
+       }) do
+    serialized_schema_refs =
+      schemas
+      |> Map.keys()
+      |> Enum.map(&{:schema, &1})
+
+    serialized_response_refs =
+      responses
+      |> Map.keys()
+      |> Enum.map(&{:response, &1})
+
+    serialized_request_body_refs =
+      request_bodies
+      |> Map.keys()
+      |> Enum.map(&{:request_body, &1})
+
+    serialized_schema_refs ++ serialized_response_refs ++ serialized_request_body_refs
   end
 end

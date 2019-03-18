@@ -18,7 +18,7 @@ defmodule Rolodex.Processors.Swagger do
     config
     |> process_headers()
     |> Map.merge(%{
-      paths: process_routes(routes),
+      paths: process_routes(routes, config),
       components: process_refs(serialize_refs)
     })
     |> Jason.encode!()
@@ -42,12 +42,12 @@ defmodule Rolodex.Processors.Swagger do
   end
 
   @impl Rolodex.Processor
-  def process_routes(routes) do
+  def process_routes(routes, config) do
     routes
     |> Flow.from_enumerable()
     |> Flow.group_by(&path_with_params/1)
     |> Flow.map(fn {path, routes} ->
-      {path, process_routes_for_path(routes)}
+      {path, process_routes_for_path(routes, config)}
     end)
     |> Map.new()
   end
@@ -58,13 +58,13 @@ defmodule Rolodex.Processors.Swagger do
     |> Regex.replace(path, fn _, path_param -> "/{#{path_param}}" end)
   end
 
-  defp process_routes_for_path(routes) do
+  defp process_routes_for_path(routes, config) do
     Map.new(routes, fn %Route{verb: verb} = route ->
-      {verb, process_route(route)}
+      {verb, process_route(route, config)}
     end)
   end
 
-  defp process_route(route) do
+  defp process_route(route, config) do
     %{
       # Swagger prefers `summary` for short, one-line descriptions of a route,
       # whereas `description` is meant for multi-line markdown explainers.
@@ -72,8 +72,8 @@ defmodule Rolodex.Processors.Swagger do
       # TODO(bceskavich): we could support both?
       summary: route.desc,
       parameters: process_params(route),
-      requestBody: process_body(route),
-      responses: process_responses(route)
+      requestBody: process_body(route, config),
+      responses: process_responses(route, config)
     }
   end
 
@@ -97,62 +97,72 @@ defmodule Rolodex.Processors.Swagger do
     end
   end
 
-  defp process_body(%Route{body: body}) when map_size(body) == 0, do: body
+  defp process_body(%Route{body: body}, _) when map_size(body) == 0, do: body
+  defp process_body(%Route{body: %{type: :ref} = body}, _), do: process_schema_field(body)
 
-  defp process_body(%Route{body: body}) do
+  defp process_body(%Route{body: body}, %Config{default_content_type: content_type}) do
     %{
       content: %{
-        # TODO(bceskavich): content type shouldn't be hard-code; should be configurable
-        "application/json" => %{
-          schema: process_schema_field(body)
-        }
+        content_type => %{schema: process_schema_field(body)}
       }
     }
   end
 
-  defp process_responses(%Route{responses: responses}) when map_size(responses) == 0,
+  defp process_responses(%Route{responses: responses}, _) when map_size(responses) == 0,
     do: responses
 
-  defp process_responses(%Route{responses: responses}) do
+  defp process_responses(%Route{responses: responses}, %Config{default_content_type: content_type}) do
     responses
     |> Map.new(fn
       {status_code, :ok} ->
         {status_code, %{description: "OK"}}
 
-      {status_code, response} ->
+      {status_code, %{type: :ref} = response} ->
         {status_code, process_schema_field(response)}
+
+      {status_code, response} ->
+        resp = %{
+          content: %{
+            content_type => %{schema: process_schema_field(response)}
+          }
+        }
+
+        {status_code, resp}
     end)
   end
 
   @impl Rolodex.Processor
-  def process_refs(%{responses: responses, schemas: schemas}) do
+  def process_refs(%{request_bodies: request_bodies, responses: responses, schemas: schemas}) do
     %{
-      responses: process_response_refs(responses),
+      requestBodies: process_content_body_refs(request_bodies, :__request_body__),
+      responses: process_content_body_refs(responses, :__response__),
       schemas: process_schema_refs(schemas)
     }
   end
 
-  defp process_response_refs(responses) do
-    responses
+  defp process_content_body_refs(refs, ref_type) do
+    refs
     |> Flow.from_enumerable()
-    |> Flow.map(fn {mod, response} ->
-      {mod.__response__(:name), process_response_ref(response)}
+    |> Flow.map(fn {mod, ref} ->
+      name = apply(mod, ref_type, [:name])
+      content = process_content_body_ref(ref)
+      {name, content}
     end)
     |> Map.new()
   end
 
-  defp process_response_ref(%{desc: desc, content: content}) do
+  defp process_content_body_ref(%{desc: desc, content: content}) do
     %{
       description: desc,
       content:
         content
         |> Map.new(fn {content_type, content_val} ->
-          {content_type, process_response_ref_content(content_val)}
+          {content_type, process_content_body_ref_data(content_val)}
         end)
     }
   end
 
-  defp process_response_ref_content(%{schema: schema, examples: examples}) do
+  defp process_content_body_ref_data(%{schema: schema, examples: examples}) do
     %{
       schema: process_schema_field(schema),
       examples: examples
@@ -238,6 +248,7 @@ defmodule Rolodex.Processors.Swagger do
 
   defp ref_path(mod) do
     case Field.get_ref_type(mod) do
+      :request_body -> "#/components/requestBodies/#{mod.__request_body__(:name)}"
       :response -> "#/components/responses/#{mod.__response__(:name)}"
       :schema -> "#/components/schemas/#{mod.__schema__(:name)}"
     end

@@ -19,7 +19,7 @@ defmodule Rolodex.Response do
   refs within
   """
 
-  alias Rolodex.Field
+  alias Rolodex.ContentUtils
 
   defmacro __using__(_opts) do
     quote do
@@ -58,31 +58,15 @@ defmodule Rolodex.Response do
         end
       end
   """
-  defmacro response(name, do: block) do
-    quote do
-      Module.register_attribute(__MODULE__, :content_types, accumulate: true)
-      Module.register_attribute(__MODULE__, :current_content_type, accumulate: false)
-      Module.register_attribute(__MODULE__, :response_desc, accumulate: false)
-
-      @response_desc nil
-
-      unquote(block)
-
-      Module.delete_attribute(__MODULE__, :current_content_type)
-
-      def __response__(:name), do: unquote(name)
-      def __response__(:desc), do: @response_desc
-      def __response__(:content_types), do: @content_types |> Enum.reverse()
-    end
+  defmacro response(name, opts) do
+    ContentUtils.def_content_body(:__response__, name, opts)
   end
 
   @doc """
   Sets a description for the response
   """
   defmacro desc(str) do
-    quote do
-      @response_desc unquote(str)
-    end
+    ContentUtils.set_desc(str)
   end
 
   @doc """
@@ -92,19 +76,8 @@ defmodule Rolodex.Response do
   - `key` - a valid content-type key
   - `block` - metadata about the response shape for this content type
   """
-  defmacro content(key, do: block) do
-    quote do
-      Module.register_attribute(__MODULE__, :examples, accumulate: true)
-
-      @content_types unquote(key)
-      @current_content_type unquote(key)
-
-      unquote(block)
-
-      def __response__({unquote(key), :examples}), do: @examples |> Enum.reverse()
-
-      Module.delete_attribute(__MODULE__, :examples)
-    end
+  defmacro content(key, opts) do
+    ContentUtils.def_content_type_shape(:__response__, key, opts)
   end
 
   @doc """
@@ -115,12 +88,8 @@ defmodule Rolodex.Response do
   - `name` - a name for the example
   - `body` - a map, which is the example data
   """
-  defmacro example(name, body) do
-    quote do
-      @examples unquote(name)
-
-      def __response__({@current_content_type, :examples, unquote(name)}), do: unquote(body)
-    end
+  defmacro example(name, example_body) do
+    ContentUtils.set_example(:__response__, name, example_body)
   end
 
   @doc """
@@ -150,22 +119,8 @@ defmodule Rolodex.Response do
         }
       end
   """
-  defmacro schema(mod_or_mods)
-
-  defmacro schema(mods) when is_list(mods) do
-    quote do
-      def __response__({@current_content_type, :schema}) do
-        Field.new(type: :list, of: unquote(mods))
-      end
-    end
-  end
-
   defmacro schema(mod) do
-    quote do
-      def __response__({@current_content_type, :schema}) do
-        Field.new(unquote(mod))
-      end
-    end
+    ContentUtils.set_schema(:__response__, mod)
   end
 
   @doc """
@@ -183,12 +138,8 @@ defmodule Rolodex.Response do
         schema :one_of, of: [MySchema, MyOtherSchema]
       end
   """
-  defmacro schema(collection_type, of: mods) do
-    quote do
-      def __response__({@current_content_type, :schema}) do
-        Field.new(type: unquote(collection_type), of: unquote(mods))
-      end
-    end
+  defmacro schema(collection_type, opts) do
+    ContentUtils.set_schema(:__response__, collection_type, opts)
   end
 
   @doc """
@@ -214,18 +165,7 @@ defmodule Rolodex.Response do
       false
   """
   @spec is_response_module?(any()) :: boolean()
-  def is_response_module?(item)
-
-  def is_response_module?(mod) when is_atom(mod) do
-    try do
-      mod.__info__(:functions)
-      |> Keyword.has_key?(:__response__)
-    rescue
-      _ -> false
-    end
-  end
-
-  def is_response_module?(_), do: false
+  def is_response_module?(mod), do: ContentUtils.is_module_of_type?(mod, :__response__)
 
   @doc """
   Serializes the `Rolodex.Response` metadata into a formatted map.
@@ -288,46 +228,12 @@ defmodule Rolodex.Response do
       }
   """
   @spec to_map(module()) :: map()
-  def to_map(resp) do
-    %{
-      desc: resp.__response__(:desc),
-      content: serialize_content(resp)
-    }
-  end
-
-  defp serialize_content(resp) do
-    resp.__response__(:content_types)
-    |> Map.new(fn content_type ->
-      data = %{
-        schema: resp.__response__({content_type, :schema}),
-        examples: serialize_examples(resp, content_type)
-      }
-
-      {content_type, data}
-    end)
-  end
-
-  defp serialize_examples(resp, content_type) do
-    {content_type, :examples}
-    |> resp.__response__()
-    |> Map.new(&{&1, resp.__response__({content_type, :examples, &1})})
-  end
+  def to_map(mod), do: ContentUtils.to_map(&mod.__response__/1)
 
   @doc """
   Traverses a serialized Response and collects any nested references to any
   Schemas within. See `Rolodex.Field.get_refs/1` for more info.
   """
   @spec get_refs(module()) :: [module()]
-  def get_refs(response) do
-    response
-    |> to_map()
-    |> Map.get(:content)
-    |> Enum.reduce(MapSet.new(), fn {_, %{schema: schema}}, acc ->
-      schema
-      |> Field.get_refs()
-      |> MapSet.new()
-      |> MapSet.union(acc)
-    end)
-    |> Enum.to_list()
-  end
+  def get_refs(mod), do: ContentUtils.get_refs(&mod.__response__/1)
 end

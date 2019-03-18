@@ -8,7 +8,7 @@ defmodule Rolodex.Processor do
   processing and returning the formatted string.
   """
 
-  @optional_callbacks process_headers: 1, process_routes: 1, process_refs: 1
+  @optional_callbacks process_headers: 1, process_routes: 2, process_refs: 1
 
   @doc """
   Process is responsible for turning each `Rolodex.Route.t()` it receives and
@@ -26,11 +26,11 @@ defmodule Rolodex.Processor do
   @doc """
   Transforms the routes.
   """
-  @callback process_routes([Rolodex.Route.t()]) :: map()
-  def process_routes(_), do: %{}
+  @callback process_routes([Rolodex.Route.t()], Rolodex.Config.t()) :: map()
+  def process_routes(_, _), do: %{}
 
   @doc """
-  Transforms the shared response and schema refs
+  Transforms the shared request body, response, and schema refs
   """
   @callback process_refs(refs :: map()) :: map()
   def process_refs(_), do: %{}

@@ -1,9 +1,22 @@
 defmodule Rolodex.Processors.SwaggerTest do
   use ExUnit.Case
 
-  alias Rolodex.{Config, Response, Route, Schema}
+  alias Rolodex.{
+    Config,
+    Response,
+    Route,
+    RequestBody,
+    Schema
+  }
+
   alias Rolodex.Processors.Swagger
-  alias Rolodex.Mocks.{ErrorResponse, User, UserResponse}
+
+  alias Rolodex.Mocks.{
+    ErrorResponse,
+    User,
+    UserRequestBody,
+    UserResponse
+  }
 
   describe "#process/3" do
     test "Processes config, routes, and schemas into a serialized JSON blob" do
@@ -16,6 +29,9 @@ defmodule Rolodex.Processors.SwaggerTest do
         )
 
       refs = %{
+        request_bodies: %{
+          UserRequestBody => RequestBody.to_map(UserRequestBody)
+        },
         responses: %{
           UserResponse => Response.to_map(UserResponse)
         },
@@ -29,12 +45,7 @@ defmodule Rolodex.Processors.SwaggerTest do
           desc: "It does a thing",
           path: "/foo",
           verb: :get,
-          body: %{
-            type: :object,
-            properties: %{
-              name: %{type: :string}
-            }
-          },
+          body: %{type: :ref, ref: UserRequestBody},
           responses: %{
             200 => %{type: :ref, ref: UserResponse}
           }
@@ -57,18 +68,7 @@ defmodule Rolodex.Processors.SwaggerTest do
                      "summary" => "It does a thing",
                      "parameters" => [],
                      "requestBody" => %{
-                       "content" => %{
-                         "application/json" => %{
-                           "schema" => %{
-                             "type" => "object",
-                             "properties" => %{
-                               "name" => %{
-                                 "type" => "string"
-                               }
-                             }
-                           }
-                         }
-                       }
+                       "$ref" => "#/components/requestBodies/UserRequestBody"
                      },
                      "responses" => %{
                        "200" => %{
@@ -79,6 +79,21 @@ defmodule Rolodex.Processors.SwaggerTest do
                  }
                },
                "components" => %{
+                 "requestBodies" => %{
+                   "UserRequestBody" => %{
+                     "content" => %{
+                       "application/json" => %{
+                         "examples" => %{
+                           "request" => %{"id" => "1"}
+                         },
+                         "schema" => %{
+                           "$ref" => "#/components/schemas/User"
+                         }
+                       }
+                     },
+                     "description" => "A single user entity request body"
+                   }
+                 },
                  "responses" => %{
                    "UserResponse" => %{
                      "content" => %{
@@ -181,12 +196,7 @@ defmodule Rolodex.Processors.SwaggerTest do
           headers: %{
             "X-Request-Id" => %{type: :uuid, required: true}
           },
-          body: %{
-            type: :object,
-            properties: %{
-              name: %{type: :string}
-            }
-          },
+          body: %{type: :ref, ref: UserRequestBody},
           query_params: %{
             id: %{
               type: :integer,
@@ -210,7 +220,7 @@ defmodule Rolodex.Processors.SwaggerTest do
         }
       ]
 
-      processed = Swagger.process_routes(routes)
+      processed = Swagger.process_routes(routes, Config.new())
 
       assert processed == %{
                "/foo" => %{
@@ -255,18 +265,7 @@ defmodule Rolodex.Processors.SwaggerTest do
                      }
                    ],
                    requestBody: %{
-                     content: %{
-                       "application/json" => %{
-                         schema: %{
-                           type: :object,
-                           properties: %{
-                             name: %{
-                               type: :string
-                             }
-                           }
-                         }
-                       }
-                     }
+                     "$ref" => "#/components/requestBodies/UserRequestBody"
                    },
                    responses: %{
                      200 => %{
@@ -304,7 +303,7 @@ defmodule Rolodex.Processors.SwaggerTest do
         }
       ]
 
-      assert Swagger.process_routes(routes) == %{
+      assert Swagger.process_routes(routes, Config.new()) == %{
                "/foo" => %{
                  get: %{
                    summary: "GET /foo",
@@ -346,6 +345,9 @@ defmodule Rolodex.Processors.SwaggerTest do
   describe "#process_refs/1" do
     test "It processes the response and schema refs" do
       refs = %{
+        request_bodies: %{
+          UserRequestBody => RequestBody.to_map(UserRequestBody)
+        },
         responses: %{
           UserResponse => Response.to_map(UserResponse)
         },
@@ -355,6 +357,19 @@ defmodule Rolodex.Processors.SwaggerTest do
       }
 
       assert Swagger.process_refs(refs) == %{
+               requestBodies: %{
+                 "UserRequestBody" => %{
+                   content: %{
+                     "application/json" => %{
+                       examples: %{request: %{id: "1"}},
+                       schema: %{
+                         "$ref" => "#/components/schemas/User"
+                       }
+                     }
+                   },
+                   description: "A single user entity request body"
+                 }
+               },
                responses: %{
                  "UserResponse" => %{
                    content: %{

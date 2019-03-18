@@ -11,6 +11,11 @@ defmodule Rolodex.FieldTest do
   doctest Field
 
   describe "new/1" do
+    test "It will return an empty map when an empty map or list is provided" do
+      assert Field.new([]) == %{}
+      assert Field.new(%{}) == %{}
+    end
+
     test "It can create a field" do
       assert Field.new(:string) == %{type: :string}
     end

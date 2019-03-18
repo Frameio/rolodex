@@ -8,7 +8,8 @@ defmodule Rolodex.RouteTest do
     TestRouter,
     UserResponse,
     PaginatedUsersResponse,
-    ErrorResponse
+    ErrorResponse,
+    UserRequestBody
   }
 
   alias Rolodex.{Config, Route}
@@ -78,13 +79,7 @@ defmodule Rolodex.RouteTest do
                headers: %{
                  "X-Request-Id" => %{type: :uuid, required: true}
                },
-               body: %{
-                 type: :object,
-                 properties: %{
-                   id: %{type: :uuid},
-                   name: %{type: :string, desc: "The name"}
-                 }
-               },
+               body: %{type: :ref, ref: UserRequestBody},
                query_params: %{
                  id: %{
                    type: :string,
@@ -127,14 +122,7 @@ defmodule Rolodex.RouteTest do
                headers: %{
                  "X-Request-Id" => %{type: :uuid, required: true}
                },
-               body: %{
-                 type: :object,
-                 properties: %{
-                   id: %{type: :uuid},
-                   name: %{type: :string, desc: "The name"},
-                   foo: %{type: :string}
-                 }
-               },
+               body: %{type: :ref, ref: UserRequestBody},
                query_params: %{
                  id: %{
                    type: :string,
@@ -176,6 +164,30 @@ defmodule Rolodex.RouteTest do
 
       %Route{headers: headers} = Route.new(phoenix_route, config)
       assert headers == %{"X-Request-Id" => %{type: :string, required: true}}
+    end
+
+    test "It processes request body and responses with plain maps", %{config: config} do
+      phoenix_route = %Router.Route{
+        plug: TestController,
+        opts: :with_bare_maps,
+        path: "/v2/test",
+        pipe_through: [],
+        verb: :get
+      }
+
+      %Route{body: body, responses: responses} = Route.new(phoenix_route, config)
+
+      assert body == %{
+               type: :object,
+               properties: %{id: %{type: :uuid}}
+             }
+
+      assert responses == %{
+               200 => %{
+                 type: :object,
+                 properties: %{id: %{type: :uuid}}
+               }
+             }
     end
 
     test "It handles an undocumented route" do
@@ -223,10 +235,6 @@ defmodule Rolodex.RouteTest do
             query_params: %{foo: :string}
           },
           web: %{
-            body: %{
-              type: :object,
-              properties: %{foo: :string}
-            },
             headers: %{"X-Request-Id" => %{type: :uuid, required: true}},
             query_params: %{foo: :string, bar: :boolean}
           },

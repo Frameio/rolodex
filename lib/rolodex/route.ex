@@ -20,11 +20,14 @@ defmodule Rolodex.Route do
 
   * **`body`** *(Default: `%{}`)
 
-  Request body parameters. Valid inputs: `Rolodex.Schema`, a map, or a list.
+  Request body parameters. Valid inputs: `Rolodex.RequestBody`, or a map or
+  keyword list describing a parameter schema. When providing a plain map or
+  keyword list, the request body schema will be set under the default content
+  type value set in `Rolodex.Config`.
 
       @doc [
-        # A request body defined via a reusable schema
-        body: SomeSchema,
+        # A shared request body defined via `Rolodex.RequestBody`
+        body: SomeRequestBody,
 
         # Request body is a JSON object with two parameters: `id` and `name`
         body: %{id: :uuid, name: :string},

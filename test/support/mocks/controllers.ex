@@ -1,5 +1,6 @@
 defmodule Rolodex.Mocks.TestController do
   alias Rolodex.Mocks.{
+    UserRequestBody,
     UserResponse,
     PaginatedUsersResponse,
     ErrorResponse
@@ -7,11 +8,6 @@ defmodule Rolodex.Mocks.TestController do
 
   @doc [
     headers: %{"X-Request-Id" => %{type: :uuid, required: true}},
-    # Body is using object shorthand
-    body: %{
-      id: :uuid,
-      name: %{type: :string, desc: "The name"}
-    },
     query_params: %{
       id: %{
         type: :string,
@@ -25,6 +21,7 @@ defmodule Rolodex.Mocks.TestController do
     path_params: %{
       account_id: :uuid
     },
+    body: UserRequestBody,
     responses: %{
       200 => UserResponse,
       201 => PaginatedUsersResponse,
@@ -40,6 +37,14 @@ defmodule Rolodex.Mocks.TestController do
     headers: %{"X-Request-Id" => :string}
   ]
   def conflicted(_, _), do: nil
+
+  @doc [
+    body: %{id: :uuid},
+    responses: %{
+      200 => %{id: :uuid}
+    }
+  ]
+  def with_bare_maps(_, _), do: nil
 
   def undocumented(_, _), do: nil
 end
