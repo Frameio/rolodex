@@ -110,7 +110,9 @@ defmodule Rolodex.Config do
       end
   """
 
-  alias Rolodex.{PipelineConfig, Utils}
+  alias Rolodex.PipelineConfig
+
+  import Rolodex.Utils, only: [to_struct: 2, to_map_deep: 1]
 
   @enforce_keys [
     :description,
@@ -180,7 +182,7 @@ defmodule Rolodex.Config do
     |> Map.new()
     |> set_pipelines_config(module)
     |> set_auth_config(module)
-    |> Utils.to_struct(__MODULE__)
+    |> to_struct(__MODULE__)
   end
 
   defp set_pipelines_config(opts, module) do
@@ -192,7 +194,7 @@ defmodule Rolodex.Config do
   end
 
   def set_auth_config(opts, module),
-    do: Map.put(opts, :auth, module.auth_spec() |> Utils.to_map_deep())
+    do: Map.put(opts, :auth, module.auth_spec() |> to_map_deep())
 end
 
 defmodule Rolodex.PipelineConfig do
@@ -217,7 +219,7 @@ defmodule Rolodex.PipelineConfig do
       }
   """
 
-  alias Rolodex.Utils
+  import Rolodex.Utils, only: [to_struct: 2, to_map_deep: 1]
 
   defstruct auth: [],
             body: %{},
@@ -238,7 +240,7 @@ defmodule Rolodex.PipelineConfig do
   @spec new(list() | map()) :: t()
   def new(params \\ []) do
     params
-    |> Map.new(fn {k, v} -> {k, Utils.to_map_deep(v)} end)
-    |> Utils.to_struct(__MODULE__)
+    |> Map.new(fn {k, v} -> {k, to_map_deep(v)} end)
+    |> to_struct(__MODULE__)
   end
 end

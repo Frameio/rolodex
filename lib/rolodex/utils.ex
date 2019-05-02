@@ -1,6 +1,13 @@
 defmodule Rolodex.Utils do
+  @moduledoc false
+
+  # Pipeline friendly dynamic struct creator
   def to_struct(data, module), do: struct(module, data)
 
+  # Pipeline friendly helper to generate {:ok, result} tuples
+  def ok(data), do: {:ok, data}
+
+  # Recursively convert a keyword list into a map
   def to_map_deep(data, level \\ 0)
   def to_map_deep([], 0), do: %{}
 
@@ -13,6 +20,7 @@ defmodule Rolodex.Utils do
 
   def to_map_deep(data, _), do: data
 
+  # Recursively convert all keys in a map from snake_case to camelCase
   def camelize_map(data) when not is_map(data), do: data
 
   def camelize_map(data) do
