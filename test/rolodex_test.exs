@@ -349,6 +349,37 @@ defmodule RolodexTest do
                      },
                      "summary" => ""
                    }
+                 },
+                 "/api/multi" => %{
+                   "get" => %{
+                     "parameters" => [],
+                     "requestBody" => %{},
+                     "responses" => %{
+                       "200" => %{"$ref" => "#/components/responses/UserResponse"},
+                       "404" => %{"$ref" => "#/components/responses/ErrorResponse"}
+                     },
+                     "security" => [%{"JWTAuth" => []}],
+                     "summary" => "It's an action used for multiple routes"
+                   }
+                 },
+                 "/api/nested/{nested_id}/multi" => %{
+                   "get" => %{
+                     "parameters" => [
+                       %{
+                         "in" => "path",
+                         "name" => "nested_id",
+                         "required" => true,
+                         "schema" => %{"format" => "uuid", "type" => "string"}
+                       }
+                     ],
+                     "requestBody" => %{},
+                     "responses" => %{
+                       "200" => %{"$ref" => "#/components/responses/UserResponse"},
+                       "404" => %{"$ref" => "#/components/responses/ErrorResponse"}
+                     },
+                     "security" => [%{"JWTAuth" => []}],
+                     "summary" => "It's an action used for multiple routes"
+                   }
                  }
                }
              }
@@ -415,7 +446,7 @@ defmodule RolodexTest do
         |> Rolodex.generate_routes()
         |> length()
 
-      assert num_routes == 3
+      assert num_routes == 5
     end
   end
 

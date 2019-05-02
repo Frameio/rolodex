@@ -11,7 +11,9 @@ defmodule Rolodex.Processors.Swagger do
     :type
   ]
 
-  alias Rolodex.{Config, Field, Route, Utils}
+  alias Rolodex.{Config, Field, Route}
+
+  import Rolodex.Utils, only: [camelize_map: 1]
 
   @impl Rolodex.Processor
   def process(config, routes, serialized_refs) do
@@ -141,7 +143,7 @@ defmodule Rolodex.Processors.Swagger do
       requestBodies: process_content_body_refs(request_bodies, :__request_body__),
       responses: process_content_body_refs(responses, :__response__),
       schemas: process_schema_refs(schemas),
-      securitySchemes: Utils.camelize_map(auth)
+      securitySchemes: camelize_map(auth)
     }
   end
 

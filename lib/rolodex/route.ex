@@ -307,6 +307,41 @@ defmodule Rolodex.Route do
         },
         responses: %{200 => :ok}
       }
+
+  ## Handling Multi-Path Actions
+
+  Sometimes, a Phoenix controller action function will be used for multiple
+  router paths. Sometimes, the documentation for each path will differ
+  significantly. If you would like for each router path to pair with its own
+  docs, you can use the `multi` flag.
+
+      # Your router
+      defmodule MyRouter do
+        scope "/api" do
+          get "/first", MyController, :index
+          get "/:id/second", MyController, :index
+        end
+      end
+
+      # Your controller
+      defmodule MyController do
+        @doc [
+          # Flagged as an action with multiple docs
+          multi: true,
+
+          # All remaining top-level keys should be router paths
+          "/api/first": [
+            responses: %{200 => MyResponse}
+          ],
+          "/api/:id/second": [
+            path_params: [
+              id: [type: :integer, required: true]
+            ],
+            responses: ${200 => MyResponse}
+          ]
+        ]
+        def index(conn, _), do: conn
+      end
   """
 
   alias Phoenix.Router
@@ -314,9 +349,10 @@ defmodule Rolodex.Route do
   alias Rolodex.{
     Config,
     PipelineConfig,
-    Field,
-    Utils
+    Field
   }
+
+  import Rolodex.Utils, only: [to_struct: 2, ok: 1]
 
   defstruct [
     :path,
@@ -378,29 +414,29 @@ defmodule Rolodex.Route do
   """
   @spec new(Phoenix.Router.Route.t(), Rolodex.Config.t()) :: t() | nil
   def new(phoenix_route, config) do
-    with action_doc_data when is_map(action_doc_data) <- fetch_route_docs(phoenix_route, config) do
-      pipeline_config = fetch_pipeline_config(phoenix_route, config)
-
-      phoenix_route
-      |> Map.take(@phoenix_route_params)
-      |> deep_merge(pipeline_config)
-      |> deep_merge(action_doc_data)
-      |> Utils.to_struct(__MODULE__)
+    with {:ok, desc, metadata} <- fetch_route_docs(phoenix_route),
+         {:ok, route_data} <- parse_route_docs(metadata, desc, phoenix_route, config) do
+      build_route(route_data, phoenix_route, config)
     else
       _ -> nil
     end
   end
 
-  # Uses `Code.fetch_docs/1` to lookup `@doc` annotations for the controller action
-  defp fetch_route_docs(phoenix_route, config) do
-    case do_docs_fetch(phoenix_route) do
-      {_, _, _, desc, metadata} ->
-        metadata
-        |> parse_param_fields()
-        |> Map.put(:desc, parse_description(desc, config))
+  defp build_route(route_data, phoenix_route, config) do
+    pipeline_config = fetch_pipeline_config(phoenix_route, config)
 
-      _ ->
-        nil
+    phoenix_route
+    |> Map.take(@phoenix_route_params)
+    |> deep_merge(pipeline_config)
+    |> deep_merge(route_data)
+    |> to_struct(__MODULE__)
+  end
+
+  # Uses `Code.fetch_docs/1` to lookup `@doc` annotations for the controller action
+  defp fetch_route_docs(phoenix_route) do
+    case do_docs_fetch(phoenix_route) do
+      {_, _, _, desc, metadata} -> {:ok, desc, metadata}
+      _ -> {:error, :not_found}
     end
   end
 
@@ -413,6 +449,46 @@ defmodule Rolodex.Route do
       {{:function, ^action, _arity}, _, _, _, _} -> true
       _ -> false
     end)
+  end
+
+  defp parse_route_docs(nil, _, _, _), do: {:error, :not_found}
+
+  defp parse_route_docs(kwl, desc, route, config) when is_list(kwl) do
+    kwl
+    |> Map.new()
+    |> parse_route_docs(desc, route, config)
+  end
+
+  defp parse_route_docs(
+         %{multi: true} = metadata,
+         desc,
+         %Router.Route{path: path} = route,
+         config
+       ) do
+    metadata
+    |> get_doc_for_path(path)
+    |> parse_route_docs(desc, route, config)
+  end
+
+  defp parse_route_docs(metadata, desc, _, config) do
+    metadata
+    |> parse_param_fields()
+    |> Map.put(:desc, parse_description(desc, config))
+    |> ok()
+  end
+
+  # When finding docs keyed by route path, the path key could be a string or atom.
+  # So we want to handle both cases, safely (i.e. no `String.to_atom/1`)
+  defp get_doc_for_path(metadata, path) do
+    metadata
+    |> Enum.find(fn
+      {k, _} when is_atom(k) -> Atom.to_string(k) == path
+      {k, _} -> k == path
+    end)
+    |> case do
+      {_, doc} -> doc
+      _ -> nil
+    end
   end
 
   defp parse_param_fields(metadata) do

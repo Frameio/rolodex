@@ -39,6 +39,29 @@ defmodule Rolodex.Mocks.TestController do
   def index(_, _), do: nil
 
   @doc [
+    multi: true,
+    "/api/multi": [
+      auth: :JWTAuth,
+      responses: %{
+        200 => UserResponse,
+        404 => ErrorResponse
+      }
+    ],
+    "/api/nested/:nested_id/multi": [
+      auth: :JWTAuth,
+      path_params: [
+        nested_id: [type: :uuid, required: true]
+      ],
+      responses: %{
+        200 => UserResponse,
+        404 => ErrorResponse
+      }
+    ]
+  ]
+  @doc "It's an action used for multiple routes"
+  def multi(_, _), do: nil
+
+  @doc [
     auth: :JWTAuth,
     headers: %{"X-Request-Id" => :string}
   ]

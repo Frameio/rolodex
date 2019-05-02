@@ -184,6 +184,51 @@ defmodule Rolodex.RouteTest do
              }
     end
 
+    test "It uses the Phoenix route path to pull out docs for a multi-headed controller action",
+         %{
+           config: config
+         } do
+      result =
+        %Router.Route{
+          plug: TestController,
+          opts: :multi,
+          path: "/api/nested/:nested_id/multi",
+          verb: :get
+        }
+        |> Route.new(config)
+
+      assert result == %Route{
+               auth: %{JWTAuth: []},
+               desc: "It's an action used for multiple routes",
+               path_params: %{
+                 nested_id: %{type: :uuid, required: true}
+               },
+               responses: %{
+                 200 => %{type: :ref, ref: UserResponse},
+                 404 => %{type: :ref, ref: ErrorResponse}
+               },
+               path: "/api/nested/:nested_id/multi",
+               verb: :get,
+               pipe_through: nil
+             }
+    end
+
+    test "It returns nil if no path matches the Phoenix route path for a multi-headed controller action",
+         %{
+           config: config
+         } do
+      result =
+        %Router.Route{
+          plug: TestController,
+          opts: :multi,
+          path: "/multi/:nested_id/multi/non-existent",
+          verb: :get
+        }
+        |> Route.new(config)
+
+      assert result == nil
+    end
+
     test "Controller action params will win if in conflict with pipeline params", %{
       config: config
     } do
