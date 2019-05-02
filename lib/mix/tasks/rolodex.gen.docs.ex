@@ -5,7 +5,7 @@ defmodule Mix.Tasks.Rolodex.Gen.Docs do
 
   @doc false
   def run(_args) do
-    Application.get_all_env(:rolodex)
+    Application.get_all_env(:rolodex)[:module]
     |> Rolodex.Config.new()
     |> Rolodex.run()
   end

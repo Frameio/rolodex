@@ -11,16 +11,14 @@ defmodule Rolodex.Processors.Swagger do
     :type
   ]
 
-  alias Rolodex.{Config, Field, Route}
+  alias Rolodex.{Config, Field, Route, Utils}
 
   @impl Rolodex.Processor
-  def process(config, routes, serialize_refs) do
+  def process(config, routes, serialized_refs) do
     config
     |> process_headers()
-    |> Map.merge(%{
-      paths: process_routes(routes, config),
-      components: process_refs(serialize_refs)
-    })
+    |> Map.put(:paths, process_routes(routes, config))
+    |> Map.put(:components, process_refs(serialized_refs, config))
     |> Jason.encode!()
   end
 
@@ -72,6 +70,7 @@ defmodule Rolodex.Processors.Swagger do
       # TODO(bceskavich): we could support both?
       summary: route.desc,
       parameters: process_params(route),
+      security: process_auth(route),
       requestBody: process_body(route, config),
       responses: process_responses(route, config)
     }
@@ -96,6 +95,8 @@ defmodule Rolodex.Processors.Swagger do
       false -> result
     end
   end
+
+  defp process_auth(%Route{auth: auth}), do: Enum.map(auth, &Map.new([&1]))
 
   defp process_body(%Route{body: body}, _) when map_size(body) == 0, do: body
   defp process_body(%Route{body: %{type: :ref} = body}, _), do: process_schema_field(body)
@@ -132,11 +133,15 @@ defmodule Rolodex.Processors.Swagger do
   end
 
   @impl Rolodex.Processor
-  def process_refs(%{request_bodies: request_bodies, responses: responses, schemas: schemas}) do
+  def process_refs(
+        %{request_bodies: request_bodies, responses: responses, schemas: schemas},
+        %Config{auth: auth}
+      ) do
     %{
       requestBodies: process_content_body_refs(request_bodies, :__request_body__),
       responses: process_content_body_refs(responses, :__response__),
-      schemas: process_schema_refs(schemas)
+      schemas: process_schema_refs(schemas),
+      securitySchemes: Utils.camelize_map(auth)
     }
   end
 

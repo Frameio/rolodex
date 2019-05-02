@@ -14,6 +14,29 @@ defmodule Rolodex.RouteTest do
 
   alias Rolodex.{Config, Route}
 
+  defmodule(BasicConfig, do: use(Rolodex.Config))
+
+  defmodule FullConfig do
+    use Rolodex.Config
+
+    def pipelines_spec() do
+      %{
+        api: %{
+          auth: :SharedAuth,
+          headers: %{"X-Request-Id" => %{type: :uuid, required: true}},
+          query_params: %{foo: :string}
+        },
+        web: %{
+          headers: %{"X-Request-Id" => %{type: :uuid, required: true}},
+          query_params: %{foo: :string, bar: :boolean}
+        },
+        socket: %{
+          headers: %{bar: :baz}
+        }
+      }
+    end
+  end
+
   describe "#matches_filter?/2" do
     setup [:setup_config]
 
@@ -75,6 +98,11 @@ defmodule Rolodex.RouteTest do
       result = Route.new(phoenix_route, config)
 
       assert result == %Route{
+               auth: %{
+                 JWTAuth: [],
+                 TokenAuth: ["user.read"],
+                 OAuth: ["user.read"]
+               },
                desc: "It's a test!",
                headers: %{
                  "X-Request-Id" => %{type: :uuid, required: true}
@@ -118,6 +146,11 @@ defmodule Rolodex.RouteTest do
       result = Route.new(phoenix_route, config)
 
       assert result == %Route{
+               auth: %{
+                 JWTAuth: [],
+                 TokenAuth: ["user.read"],
+                 OAuth: ["user.read"]
+               },
                desc: "It's a test!",
                headers: %{
                  "X-Request-Id" => %{type: :uuid, required: true}
@@ -162,8 +195,9 @@ defmodule Rolodex.RouteTest do
         verb: :get
       }
 
-      %Route{headers: headers} = Route.new(phoenix_route, config)
+      %Route{auth: auth, headers: headers} = Route.new(phoenix_route, config)
       assert headers == %{"X-Request-Id" => %{type: :string, required: true}}
+      assert auth == %{JWTAuth: [], SharedAuth: []}
     end
 
     test "It processes request body and responses with plain maps", %{config: config} do
@@ -199,7 +233,7 @@ defmodule Rolodex.RouteTest do
         verb: :post
       }
 
-      assert Route.new(phoenix_route, Config.new()) == %Route{
+      assert Route.new(phoenix_route, Config.new(BasicConfig)) == %Route{
                desc: "",
                headers: %{},
                body: %{},
@@ -222,28 +256,9 @@ defmodule Rolodex.RouteTest do
         verb: :post
       }
 
-      assert Route.new(phoenix_route, Config.new()) == nil
+      assert Route.new(phoenix_route, Config.new(BasicConfig)) == nil
     end
   end
 
-  def setup_config(_) do
-    config =
-      Config.new(%{
-        pipelines: %{
-          api: %{
-            headers: %{"X-Request-Id" => %{type: :uuid, required: true}},
-            query_params: %{foo: :string}
-          },
-          web: %{
-            headers: %{"X-Request-Id" => %{type: :uuid, required: true}},
-            query_params: %{foo: :string, bar: :boolean}
-          },
-          socket: %{
-            headers: %{bar: :baz}
-          }
-        }
-      })
-
-    [config: config]
-  end
+  defp setup_config(_), do: [config: Config.new(FullConfig)]
 end

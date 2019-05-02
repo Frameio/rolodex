@@ -19,17 +19,57 @@ defmodule RolodexTest do
     UserRequestBody
   }
 
+  defmodule ConfigNoFilters do
+    use Rolodex.Config
+    def spec(), do: [router: TestRouter]
+  end
+
+  defmodule ConfigWithFilters do
+    use Rolodex.Config
+
+    def spec() do
+      [
+        router: TestRouter,
+        filters: [%{path: "/api/demo/:id", verb: :delete}],
+        writer: Rolodex.Writers.Mock,
+        server_urls: ["https://api.example.com"]
+      ]
+    end
+
+    def auth_spec() do
+      [
+        JWTAuth: [
+          type: "http",
+          scheme: "bearer"
+        ],
+        TokenAuth: [type: "oauth2"],
+        OAuth: [
+          type: "oauth2",
+          flows: [
+            authorization_code: [
+              authorization_url: "https://applications.frame.io/oauth2/authorize",
+              token_url: "https://applications.frame.io/oauth2/token",
+              scopes: [
+                "user.read",
+                "account.read",
+                "account.write"
+              ]
+            ]
+          ]
+        ]
+      ]
+    end
+  end
+
   describe "#run/1" do
     test "Generates documentation and writes out to destination" do
-      config =
-        Config.new(
-          router: TestRouter,
-          filters: [%{path: "/api/demo/:id", verb: :delete}],
-          writer: %{module: Rolodex.Writers.Mock},
-          server_urls: ["https://api.example.com"]
-        )
-
-      result = capture_io(fn -> Rolodex.run(config) end) |> Jason.decode!()
+      result =
+        capture_io(fn ->
+          ConfigWithFilters
+          |> Config.new()
+          |> Rolodex.run()
+        end)
+        |> Jason.decode!()
 
       assert result == %{
                "components" => %{
@@ -175,6 +215,27 @@ defmodule RolodexTest do
                        }
                      }
                    }
+                 },
+                 "securitySchemes" => %{
+                   "JWTAuth" => %{
+                     "type" => "http",
+                     "scheme" => "bearer"
+                   },
+                   "TokenAuth" => %{"type" => "oauth2"},
+                   "OAuth" => %{
+                     "type" => "oauth2",
+                     "flows" => %{
+                       "authorizationCode" => %{
+                         "authorizationUrl" => "https://applications.frame.io/oauth2/authorize",
+                         "tokenUrl" => "https://applications.frame.io/oauth2/token",
+                         "scopes" => [
+                           "user.read",
+                           "account.read",
+                           "account.write"
+                         ]
+                       }
+                     }
+                   }
                  }
                },
                "info" => %{"description" => nil, "title" => nil, "version" => nil},
@@ -183,6 +244,11 @@ defmodule RolodexTest do
                "paths" => %{
                  "/api/demo" => %{
                    "get" => %{
+                     "security" => [
+                       %{"JWTAuth" => []},
+                       %{"OAuth" => ["user.read"]},
+                       %{"TokenAuth" => ["user.read"]}
+                     ],
                      "parameters" => [
                        %{
                          "in" => "header",
@@ -232,6 +298,7 @@ defmodule RolodexTest do
                  },
                  "/api/demo/{id}" => %{
                    "post" => %{
+                     "security" => [%{"JWTAuth" => []}],
                      "parameters" => [
                        %{
                          "in" => "header",
@@ -246,6 +313,7 @@ defmodule RolodexTest do
                      "summary" => ""
                    },
                    "put" => %{
+                     "security" => [],
                      "parameters" => [],
                      "requestBody" => %{
                        "content" => %{
@@ -290,10 +358,16 @@ defmodule RolodexTest do
   describe "#generate_routes/1" do
     test "Generates a list of %Route{} structs for the given router" do
       result =
-        Config.new(router: TestRouter)
+        ConfigNoFilters
+        |> Config.new()
         |> Rolodex.generate_routes()
 
       assert result |> Enum.at(0) == %Route{
+               auth: %{
+                 JWTAuth: [],
+                 TokenAuth: ["user.read"],
+                 OAuth: ["user.read"]
+               },
                body: %{type: :ref, ref: UserRequestBody},
                desc: "It's a test!",
                headers: %{
@@ -325,6 +399,7 @@ defmodule RolodexTest do
 
       assert result |> Enum.at(1) == %Route{
                desc: "",
+               auth: %{JWTAuth: []},
                headers: %{
                  "X-Request-Id" => %{type: :string}
                },
@@ -335,7 +410,8 @@ defmodule RolodexTest do
 
     test "It filters out routes that match the config" do
       num_routes =
-        Config.new(router: TestRouter, filters: [%{path: "/api/demo/:id", verb: :delete}])
+        ConfigWithFilters
+        |> Config.new()
         |> Rolodex.generate_routes()
         |> length()
 
