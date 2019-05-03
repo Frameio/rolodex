@@ -78,7 +78,7 @@ defmodule RolodexTest do
                      "content" => %{
                        "application/json" => %{
                          "examples" => %{
-                           "request" => %{"id" => "1"}
+                           "request" => %{"value" => %{"id" => "1"}}
                          },
                          "schema" => %{
                            "$ref" => "#/components/schemas/User"
@@ -107,7 +107,9 @@ defmodule RolodexTest do
                    "PaginatedUsersResponse" => %{
                      "content" => %{
                        "application/json" => %{
-                         "examples" => %{"response" => [%{"id" => "1"}]},
+                         "examples" => %{
+                           "response" => %{"value" => [%{"id" => "1"}]}
+                         },
                          "schema" => %{
                            "properties" => %{
                              "page" => %{"type" => "integer"},
@@ -128,7 +130,9 @@ defmodule RolodexTest do
                    "UserResponse" => %{
                      "content" => %{
                        "application/json" => %{
-                         "examples" => %{"response" => %{"id" => "1"}},
+                         "examples" => %{
+                           "response" => %{"value" => %{"id" => "1"}}
+                         },
                          "schema" => %{
                            "$ref" => "#/components/schemas/User"
                          }
@@ -308,7 +312,6 @@ defmodule RolodexTest do
                          }
                        }
                      ],
-                     "requestBody" => %{},
                      "responses" => %{},
                      "summary" => ""
                    },
@@ -353,7 +356,6 @@ defmodule RolodexTest do
                  "/api/multi" => %{
                    "get" => %{
                      "parameters" => [],
-                     "requestBody" => %{},
                      "responses" => %{
                        "200" => %{"$ref" => "#/components/responses/UserResponse"},
                        "404" => %{"$ref" => "#/components/responses/ErrorResponse"}
@@ -372,7 +374,6 @@ defmodule RolodexTest do
                          "schema" => %{"format" => "uuid", "type" => "string"}
                        }
                      ],
-                     "requestBody" => %{},
                      "responses" => %{
                        "200" => %{"$ref" => "#/components/responses/UserResponse"},
                        "404" => %{"$ref" => "#/components/responses/ErrorResponse"}
