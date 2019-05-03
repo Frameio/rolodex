@@ -295,10 +295,8 @@ defmodule Rolodex do
   @spec generate_routes(Rolodex.Config.t()) :: [Rolodex.Route.t()]
   def generate_routes(%Config{router: router} = config) do
     router.__routes__()
-    |> Flow.from_enumerable()
-    |> Flow.map(&Route.new(&1, config))
-    |> Flow.reject(&(&1 == nil || Route.matches_filter?(&1, config)))
-    |> Enum.to_list()
+    |> Enum.map(&Route.new(&1, config))
+    |> Enum.reject(&(&1 == nil || Route.matches_filter?(&1, config)))
   end
 
   @doc """
@@ -309,13 +307,11 @@ defmodule Rolodex do
   """
   @spec generate_refs([Rolodex.Route.t()]) :: map()
   def generate_refs(routes) do
-    routes
-    |> Flow.from_enumerable()
-    |> Flow.reduce(
-      fn -> %{schemas: %{}, responses: %{}, request_bodies: %{}} end,
+    Enum.reduce(
+      routes,
+      %{schemas: %{}, responses: %{}, request_bodies: %{}},
       &refs_for_route/2
     )
-    |> Map.new()
   end
 
   defp refs_for_route(route, all_refs) do
