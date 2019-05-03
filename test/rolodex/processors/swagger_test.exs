@@ -1,41 +1,94 @@
 defmodule Rolodex.Processors.SwaggerTest do
   use ExUnit.Case
 
-  alias Rolodex.{Config, Route, Schema}
+  alias Rolodex.{
+    Config,
+    Response,
+    Route,
+    RequestBody,
+    Schema
+  }
+
   alias Rolodex.Processors.Swagger
-  alias Rolodex.Mocks.{User, NotFound}
+
+  alias Rolodex.Mocks.{
+    ErrorResponse,
+    User,
+    UserRequestBody,
+    UserResponse
+  }
+
+  defmodule(BasicConfig, do: use(Rolodex.Config))
+
+  defmodule FullConfig do
+    use Rolodex.Config
+
+    def spec() do
+      [
+        description: "foo",
+        title: "bar",
+        version: "1",
+        server_urls: ["https://api.example.com"]
+      ]
+    end
+
+    def auth_spec() do
+      [
+        JWTAuth: [
+          type: "http",
+          scheme: "bearer"
+        ],
+        OAuth: [
+          type: "oauth2",
+          flows: [
+            authorization_code: [
+              authorization_url: "https://applications.frame.io/oauth2/authorize",
+              token_url: "https://applications.frame.io/oauth2/token",
+              scopes: [
+                "user.read",
+                "account.read",
+                "account.write"
+              ]
+            ]
+          ]
+        ]
+      ]
+    end
+  end
 
   describe "#process/3" do
     test "Processes config, routes, and schemas into a serialized JSON blob" do
-      config =
-        Config.new(
-          description: "foo",
-          title: "bar",
-          version: "1",
-          server_urls: ["https://api.example.com"]
-        )
+      config = Config.new(FullConfig)
 
-      schemas = %{User => Schema.to_map(User)}
+      refs = %{
+        request_bodies: %{
+          UserRequestBody => RequestBody.to_map(UserRequestBody)
+        },
+        responses: %{
+          UserResponse => Response.to_map(UserResponse)
+        },
+        schemas: %{
+          User => Schema.to_map(User)
+        }
+      }
 
       routes = [
         %Route{
+          auth: %{
+            JWTAuth: [],
+            OAuth: ["user.read"]
+          },
           desc: "It does a thing",
           path: "/foo",
           verb: :get,
-          body: %{
-            type: :object,
-            properties: %{
-              name: %{type: :string}
-            }
-          },
+          body: %{type: :ref, ref: UserRequestBody},
           responses: %{
-            200 => %{type: :ref, ref: User},
-            201 => :ok
+            200 => %{type: :ref, ref: UserResponse}
           }
         }
       ]
 
-      result = Swagger.process(config, routes, schemas) |> Jason.decode!()
+      result = Swagger.process(config, routes, refs) |> Jason.decode!()
 
       assert result == %{
                "openapi" => "3.0.0",
@@ -49,46 +102,67 @@ defmodule Rolodex.Processors.SwaggerTest do
                  "/foo" => %{
                    "get" => %{
                      "summary" => "It does a thing",
+                     "security" => [
+                       %{"JWTAuth" => []},
+                       %{"OAuth" => ["user.read"]}
+                     ],
                      "parameters" => [],
                      "requestBody" => %{
-                       "content" => %{
-                         "application/json" => %{
-                           "schema" => %{
-                             "type" => "object",
-                             "properties" => %{
-                               "name" => %{
-                                 "type" => "string"
-                               }
-                             }
-                           }
-                         }
-                       }
+                       "$ref" => "#/components/requestBodies/UserRequestBody"
                      },
                      "responses" => %{
                        "200" => %{
-                         "content" => %{
-                           "application/json" => %{
-                             "schema" => %{
-                               "$ref" => "#/components/schemas/User"
-                             }
-                           }
-                         }
-                       },
-                       "201" => %{
-                         "description" => "OK"
+                         "$ref" => "#/components/responses/UserResponse"
                        }
                      }
                    }
                  }
                },
                "components" => %{
+                 "requestBodies" => %{
+                   "UserRequestBody" => %{
+                     "content" => %{
+                       "application/json" => %{
+                         "examples" => %{
+                           "request" => %{"value" => %{"id" => "1"}}
+                         },
+                         "schema" => %{
+                           "$ref" => "#/components/schemas/User"
+                         }
+                       }
+                     },
+                     "description" => "A single user entity request body"
+                   }
+                 },
+                 "responses" => %{
+                   "UserResponse" => %{
+                     "content" => %{
+                       "application/json" => %{
+                         "examples" => %{
+                           "response" => %{"value" => %{"id" => "1"}}
+                         },
+                         "schema" => %{
+                           "$ref" => "#/components/schemas/User"
+                         }
+                       }
+                     },
+                     "description" => "A single user entity response"
+                   }
+                 },
                  "schemas" => %{
                    "User" => %{
                      "type" => "object",
+                     "description" => "A user record",
+                     "required" => ["id", "email"],
                      "properties" => %{
-                       "id" => %{"type" => "string", "format" => "uuid"},
+                       "id" => %{
+                         "type" => "string",
+                         "format" => "uuid",
+                         "description" => "The id of the user"
+                       },
                        "email" => %{
-                         "type" => "string"
+                         "type" => "string",
+                         "description" => "The email of the user"
                        },
                        "comment" => %{
                          "$ref" => "#/components/schemas/Comment"
@@ -101,6 +175,7 @@ defmodule Rolodex.Processors.SwaggerTest do
                        },
                        "comments_of_many_types" => %{
                          "type" => "array",
+                         "description" => "List of text or comment",
                          "items" => %{
                            "oneOf" => [
                              %{
@@ -125,6 +200,26 @@ defmodule Rolodex.Processors.SwaggerTest do
                        }
                      }
                    }
+                 },
+                 "securitySchemes" => %{
+                   "JWTAuth" => %{
+                     "type" => "http",
+                     "scheme" => "bearer"
+                   },
+                   "OAuth" => %{
+                     "type" => "oauth2",
+                     "flows" => %{
+                       "authorizationCode" => %{
+                         "authorizationUrl" => "https://applications.frame.io/oauth2/authorize",
+                         "tokenUrl" => "https://applications.frame.io/oauth2/token",
+                         "scopes" => [
+                           "user.read",
+                           "account.read",
+                           "account.write"
+                         ]
+                       }
+                     }
+                   }
                  }
                }
              }
@@ -133,13 +228,7 @@ defmodule Rolodex.Processors.SwaggerTest do
 
   describe "#process_headers/1" do
     test "It returns a map of top-level metadata" do
-      config =
-        Config.new(
-          description: "foo",
-          title: "bar",
-          version: "1",
-          server_urls: ["https://api.example.com"]
-        )
+      config = Config.new(FullConfig)
 
       headers = Swagger.process_headers(config)
 
@@ -156,19 +245,15 @@ defmodule Rolodex.Processors.SwaggerTest do
   end
 
   describe "#process_routes/1" do
-    test "It takes a list of routes and schemas and returns a formatted map" do
+    test "It takes a list of routes and refs and returns a formatted map" do
       routes = [
         %Route{
           desc: "It does a thing",
+          auth: %{JWTAuth: []},
           headers: %{
             "X-Request-Id" => %{type: :uuid, required: true}
           },
-          body: %{
-            type: :object,
-            properties: %{
-              name: %{type: :string}
-            }
-          },
+          body: %{type: :ref, ref: UserRequestBody},
           query_params: %{
             id: %{
               type: :integer,
@@ -180,29 +265,29 @@ defmodule Rolodex.Processors.SwaggerTest do
             update: %{type: :boolean}
           },
           path_params: %{
-            account_id: %{type: :uuid}
+            account_id: %{type: :uuid, desc: "The account id"}
           },
           responses: %{
-            200 => %{type: :ref, ref: User},
+            200 => %{type: :ref, ref: UserResponse},
             201 => :ok,
-            404 => %{type: :ref, ref: NotFound}
+            404 => %{type: :ref, ref: ErrorResponse}
           },
           path: "/foo",
           verb: :get
         }
       ]
 
-      processed = Swagger.process_routes(routes)
+      processed = Swagger.process_routes(routes, Config.new(BasicConfig))
 
       assert processed == %{
                "/foo" => %{
                  get: %{
                    summary: "It does a thing",
+                   security: [%{JWTAuth: []}],
                    parameters: [
                      %{
                        in: :header,
                        name: "X-Request-Id",
-                       description: "",
                        required: true,
                        schema: %{
                          type: :string,
@@ -212,17 +297,15 @@ defmodule Rolodex.Processors.SwaggerTest do
                      %{
                        in: :path,
                        name: :account_id,
-                       description: "",
-                       required: false,
                        schema: %{
                          type: :string,
-                         format: :uuid
+                         format: :uuid,
+                         description: "The account id"
                        }
                      },
                      %{
                        in: :query,
                        name: :id,
-                       description: "",
                        required: true,
                        schema: %{
                          type: :integer,
@@ -234,46 +317,21 @@ defmodule Rolodex.Processors.SwaggerTest do
                      %{
                        in: :query,
                        name: :update,
-                       description: "",
-                       required: false,
                        schema: %{
                          type: :boolean
                        }
                      }
                    ],
                    requestBody: %{
-                     content: %{
-                       "application/json" => %{
-                         schema: %{
-                           type: :object,
-                           properties: %{
-                             name: %{
-                               type: :string
-                             }
-                           }
-                         }
-                       }
-                     }
+                     "$ref" => "#/components/requestBodies/UserRequestBody"
                    },
                    responses: %{
                      200 => %{
-                       content: %{
-                         "application/json" => %{
-                           schema: %{
-                             "$ref" => "#/components/schemas/User"
-                           }
-                         }
-                       }
+                       "$ref" => "#/components/responses/UserResponse"
                      },
                      201 => %{description: "OK"},
                      404 => %{
-                       content: %{
-                         "application/json" => %{
-                           schema: %{
-                             "$ref" => "#/components/schemas/NotFound"
-                           }
-                         }
-                       }
+                       "$ref" => "#/components/responses/ErrorResponse"
                      }
                    }
                  }
@@ -287,37 +345,31 @@ defmodule Rolodex.Processors.SwaggerTest do
           path: "/foo",
           verb: :get,
           desc: "GET /foo",
-          responses: %{200 => %{type: :ref, ref: User}}
+          responses: %{200 => %{type: :ref, ref: UserResponse}}
         },
         %Route{
           path: "/foo/:id",
           verb: :get,
           desc: "GET /foo/{id}",
-          responses: %{200 => %{type: :ref, ref: User}}
+          responses: %{200 => %{type: :ref, ref: UserResponse}}
         },
         %Route{
           path: "/foo/:id",
           verb: :post,
           desc: "POST /foo/{id}",
-          responses: %{200 => %{type: :ref, ref: User}}
+          responses: %{200 => %{type: :ref, ref: UserResponse}}
         }
       ]
 
-      assert Swagger.process_routes(routes) == %{
+      assert Swagger.process_routes(routes, Config.new(BasicConfig)) == %{
                "/foo" => %{
                  get: %{
                    summary: "GET /foo",
-                   requestBody: %{},
+                   security: [],
                    parameters: [],
                    responses: %{
                      200 => %{
-                       content: %{
-                         "application/json" => %{
-                           schema: %{
-                             "$ref" => "#/components/schemas/User"
-                           }
-                         }
-                       }
+                       "$ref" => "#/components/responses/UserResponse"
                      }
                    }
                  }
@@ -325,33 +377,21 @@ defmodule Rolodex.Processors.SwaggerTest do
                "/foo/{id}" => %{
                  get: %{
                    summary: "GET /foo/{id}",
-                   requestBody: %{},
+                   security: [],
                    parameters: [],
                    responses: %{
                      200 => %{
-                       content: %{
-                         "application/json" => %{
-                           schema: %{
-                             "$ref" => "#/components/schemas/User"
-                           }
-                         }
-                       }
+                       "$ref" => "#/components/responses/UserResponse"
                      }
                    }
                  },
                  post: %{
                    summary: "POST /foo/{id}",
-                   requestBody: %{},
+                   security: [],
                    parameters: [],
                    responses: %{
                      200 => %{
-                       content: %{
-                         "application/json" => %{
-                           schema: %{
-                             "$ref" => "#/components/schemas/User"
-                           }
-                         }
-                       }
+                       "$ref" => "#/components/responses/UserResponse"
                      }
                    }
                  }
@@ -360,61 +400,116 @@ defmodule Rolodex.Processors.SwaggerTest do
     end
   end
 
-  describe "#process_schemas/1" do
-    test "It processes the schemas" do
-      schemas = %{
-        User => Schema.to_map(User),
-        NotFound => Schema.to_map(NotFound)
+  describe "#process_refs/1" do
+    test "It processes the response and schema refs" do
+      refs = %{
+        request_bodies: %{
+          UserRequestBody => RequestBody.to_map(UserRequestBody)
+        },
+        responses: %{
+          UserResponse => Response.to_map(UserResponse)
+        },
+        schemas: %{
+          User => Schema.to_map(User)
+        }
       }
 
-      assert Swagger.process_schemas(schemas) == %{
-               "User" => %{
-                 type: :object,
-                 properties: %{
-                   id: %{type: :string, format: :uuid},
-                   email: %{
-                     type: :string
-                   },
-                   comment: %{
-                     "$ref" => "#/components/schemas/Comment"
-                   },
-                   comments: %{
-                     type: :array,
-                     items: %{
-                       "$ref" => "#/components/schemas/Comment"
+      assert Swagger.process_refs(refs, Config.new(FullConfig)) == %{
+               requestBodies: %{
+                 "UserRequestBody" => %{
+                   content: %{
+                     "application/json" => %{
+                       examples: %{request: %{value: %{id: "1"}}},
+                       schema: %{
+                         "$ref" => "#/components/schemas/User"
+                       }
                      }
                    },
-                   comments_of_many_types: %{
-                     type: :array,
-                     items: %{
+                   description: "A single user entity request body"
+                 }
+               },
+               responses: %{
+                 "UserResponse" => %{
+                   content: %{
+                     "application/json" => %{
+                       examples: %{response: %{value: %{id: "1"}}},
+                       schema: %{
+                         "$ref" => "#/components/schemas/User"
+                       }
+                     }
+                   },
+                   description: "A single user entity response"
+                 }
+               },
+               schemas: %{
+                 "User" => %{
+                   type: :object,
+                   description: "A user record",
+                   required: [:id, :email],
+                   properties: %{
+                     id: %{
+                       type: :string,
+                       format: :uuid,
+                       description: "The id of the user"
+                     },
+                     email: %{
+                       type: :string,
+                       description: "The email of the user"
+                     },
+                     comment: %{
+                       "$ref" => "#/components/schemas/Comment"
+                     },
+                     comments: %{
+                       type: :array,
+                       items: %{
+                         "$ref" => "#/components/schemas/Comment"
+                       }
+                     },
+                     comments_of_many_types: %{
+                       type: :array,
+                       description: "List of text or comment",
+                       items: %{
+                         oneOf: [
+                           %{
+                             type: :string
+                           },
+                           %{
+                             "$ref" => "#/components/schemas/Comment"
+                           }
+                         ]
+                       }
+                     },
+                     multi: %{
                        oneOf: [
                          %{
                            type: :string
                          },
-                         %{
-                           "$ref" => "#/components/schemas/Comment"
-                         }
+                         %{"$ref" => "#/components/schemas/NotFound"}
                        ]
+                     },
+                     parent: %{
+                       "$ref" => "#/components/schemas/Parent"
                      }
-                   },
-                   multi: %{
-                     oneOf: [
-                       %{
-                         type: :string
-                       },
-                       %{"$ref" => "#/components/schemas/NotFound"}
-                     ]
-                   },
-                   parent: %{
-                     "$ref" => "#/components/schemas/Parent"
                    }
                  }
                },
-               "NotFound" => %{
-                 type: :object,
-                 properties: %{
-                   message: %{
-                     type: :string
+               securitySchemes: %{
+                 "JWTAuth" => %{
+                   "type" => "http",
+                   "scheme" => "bearer"
+                 },
+                 "OAuth" => %{
+                   "type" => "oauth2",
+                   "flows" => %{
+                     "authorizationCode" => %{
+                       "authorizationUrl" => "https://applications.frame.io/oauth2/authorize",
+                       "tokenUrl" => "https://applications.frame.io/oauth2/token",
+                       "scopes" => [
+                         "user.read",
+                         "account.read",
+                         "account.write"
+                       ]
+                     }
                    }
                  }
                }

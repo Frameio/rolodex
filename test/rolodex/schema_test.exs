@@ -10,7 +10,7 @@ defmodule Rolodex.SchemaTest do
     User
   }
 
-  doctest Rolodex.Schema
+  doctest Schema
 
   describe "#schema/3 macro" do
     test "It generates schema metadata" do
@@ -31,9 +31,11 @@ defmodule Rolodex.SchemaTest do
 
   describe "#field/3 macro" do
     test "It generates getters" do
-      assert User.__field__(:id) == {:id, %{type: :uuid, desc: "The id of the user"}}
+      assert User.__field__(:id) ==
+               {:id, %{type: :uuid, desc: "The id of the user", required: true}}
 
-      assert User.__field__(:email) == {:email, %{type: :string, desc: "The email of the user"}}
+      assert User.__field__(:email) ==
+               {:email, %{type: :string, desc: "The email of the user", required: true}}
 
       assert User.__field__(:comment) == {:comment, %{type: :ref, ref: Comment}}
       assert User.__field__(:parent) == {:parent, %{type: :ref, ref: Parent}}
@@ -70,8 +72,8 @@ defmodule Rolodex.SchemaTest do
                type: :object,
                desc: "A user record",
                properties: %{
-                 id: %{desc: "The id of the user", type: :uuid},
-                 email: %{desc: "The email of the user", type: :string},
+                 id: %{desc: "The id of the user", type: :uuid, required: true},
+                 email: %{desc: "The email of the user", type: :string, required: true},
                  parent: %{type: :ref, ref: Parent},
                  comment: %{type: :ref, ref: Comment},
                  comments: %{
@@ -98,105 +100,11 @@ defmodule Rolodex.SchemaTest do
     end
   end
 
-  describe "#new_field/1" do
-    test "It can create a field" do
-      assert Schema.new_field(:string) == %{type: :string}
-    end
-
-    test "It resolves top-level Rolodex.Schema refs" do
-      field = Schema.new_field(type: :list, of: [User, Comment, :string])
-
-      assert field == %{
-               type: :list,
-               of: [
-                 %{type: :ref, ref: User},
-                 %{type: :ref, ref: Comment},
-                 %{type: :string}
-               ]
-             }
-    end
-
-    test "It handles objects as bare maps" do
-      field = Schema.new_field(type: :object, properties: %{id: :string, nested: User})
-
-      assert field == %{
-               type: :object,
-               properties: %{
-                 id: %{type: :string},
-                 nested: %{type: :ref, ref: User}
-               }
-             }
-    end
-
-    test "It handles objects with already created Fields" do
-      field =
-        Schema.new_field(
-          type: :object,
-          properties: %{id: Schema.new_field(:string), nested: Schema.new_field(type: User)}
-        )
-
-      assert field == %{
-               type: :object,
-               properties: %{
-                 id: %{type: :string},
-                 nested: %{type: :ref, ref: User}
-               }
-             }
-    end
-
-    test "It handles object shorthand" do
-      field = Schema.new_field(id: :uuid, name: :string, nested: User)
-
-      assert field == %{
-               type: :object,
-               properties: %{
-                 id: %{type: :uuid},
-                 name: %{type: :string},
-                 nested: %{type: :ref, ref: User}
-               }
-             }
-    end
-
-    test "It handles list shorthand" do
-      field = Schema.new_field([:uuid, User])
-
-      assert field == %{
-               type: :list,
-               of: [
-                 %{type: :uuid},
-                 %{type: :ref, ref: User}
-               ]
-             }
-    end
-  end
-
   describe "#get_refs/1" do
     test "It gets refs within a schema module" do
       refs = Schema.get_refs(User)
 
       assert refs == [Comment, NotFound, Parent]
-    end
-
-    test "It gets schema refs as top-level fields" do
-      refs = Schema.new_field(type: User) |> Schema.get_refs()
-
-      assert refs == [User]
-    end
-
-    test "It gets schema refs in collections" do
-      refs =
-        Schema.new_field(type: :list, of: [User, Comment, :string])
-        |> Schema.get_refs()
-
-      assert refs == [Comment, User]
-    end
-
-    test "It gets schema refs in nested properties" do
-      refs =
-        Schema.new_field(type: :object, properties: %{id: :string, nested: User})
-        |> Schema.get_refs()
-
-      assert refs == [User]
     end
   end
 end

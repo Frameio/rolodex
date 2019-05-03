@@ -8,13 +8,14 @@ defmodule Rolodex.Processor do
   processing and returning the formatted string.
   """
 
-  @optional_callbacks process_headers: 1, process_routes: 1, process_schemas: 1
+  @optional_callbacks process_headers: 1, process_routes: 2, process_refs: 2
 
   @doc """
   Process is responsible for turning each `Rolodex.Route.t()` it receives and
   turning it into a string so that it can be written.
   """
-  @callback process(Rolodex.Config.t(), [Rolodex.Route.t()], schemas :: map()) :: String.t()
+  @callback process(Rolodex.Config.t(), [Rolodex.Route.t()], serialized_refs :: map()) ::
+              String.t()
 
   @doc """
   Generates top-level metadata for the output.
@@ -25,12 +26,12 @@ defmodule Rolodex.Processor do
   @doc """
   Transforms the routes.
   """
-  @callback process_routes([Rolodex.Route.t()]) :: map()
-  def process_routes(_), do: %{}
+  @callback process_routes([Rolodex.Route.t()], Rolodex.Config.t()) :: map()
+  def process_routes(_, _), do: %{}
 
   @doc """
-  Transforms the shared schemas.
+  Transforms the shared request body, response, and schema refs
   """
-  @callback process_schemas(schemas :: map()) :: map()
-  def process_schemas(_), do: %{}
+  @callback process_refs(refs :: map(), config :: Rolodex.Config.t()) :: map()
+  def process_refs(_, _), do: %{}
 end

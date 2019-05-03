@@ -20,11 +20,14 @@ defmodule Rolodex.Route do
 
   * **`body`** *(Default: `%{}`)
 
-  Request body parameters. Valid inputs: `Rolodex.Schema`, a map, or a list.
+  Request body parameters. Valid inputs: `Rolodex.RequestBody`, or a map or
+  keyword list describing a parameter schema. When providing a plain map or
+  keyword list, the request body schema will be set under the default content
+  type value set in `Rolodex.Config`.
 
       @doc [
-        # A request body defined via a reusable schema
-        body: SomeSchema,
+        # A shared request body defined via `Rolodex.RequestBody`
+        body: SomeRequestBody,
 
         # Request body is a JSON object with two parameters: `id` and `name`
         body: %{id: :uuid, name: :string},
@@ -55,6 +58,27 @@ defmodule Rolodex.Route do
           id: :uuid,
           name: [type: :string, desc: "The name"],
           ages: [:number]
+        ]
+      ]
+
+  * **`auth`** (Default: `%{}`)
+
+  Define auth requirements for the route. Valid input is a single atom or a list
+  of auth patterns. We only support logical OR auth definitions: if you provide
+  a list of auth patterns, Rolodex will serialize this as any one of those auth
+  patterns is required.
+
+      @doc [
+        # Simplest: auth pattern with no scope patterns
+        auth: :MySimpleAuth,
+
+        # One auth pattern with some scopes
+        auth: [OAuth: ["user.read"]],
+
+        # Multiple auth patterns
+        auth: [
+          :MySimpleAuth,
+          OAuth: ["user.read"]
         ]
       ]
 
@@ -189,12 +213,12 @@ defmodule Rolodex.Route do
 
   Response(s) for the route action. Valid input is a map or keyword list, where
   each key is a response code and each value is a description of the response in
-  the form of a `Rolodex.Schema`, an atom, a map, or a list.
+  the form of a `Rolodex.Response`, an atom, a map, or a list.
 
       @doc [
         responses: %{
           # A response defined via a reusable schema
-          200 => MyResponseSchema,
+          200 => MyResponse,
 
           # Use `:ok` for simple success responses
           200 => :ok,
@@ -217,15 +241,15 @@ defmodule Rolodex.Route do
           ],
 
           # Response is a JSON array of a schema
-          200 => [MyResponseSchema],
+          200 => [MyResponse],
 
           # Same as above, but here the top-level data structure `type` is specified
-          200 => %{type: :list, of: [MyResponseSchema]},
-          200 => [type: :list, of: [MyResponseSchema]],
+          200 => %{type: :list, of: [MyResponse]},
+          200 => [type: :list, of: [MyResponse]],
 
           # Response is one of multiple possible results
-          200 => %{type: :one_of, of: [MyResponseSchema, OtherSchema]},
-          200 => [type: :one_of, of: [MyResponseSchema, OtherSchema]],
+          200 => %{type: :one_of, of: [MyResponse, OtherResponse]},
+          200 => [type: :one_of, of: [MyResponse, OtherResponse]],
         }
       ]
 
@@ -283,18 +307,57 @@ defmodule Rolodex.Route do
         },
         responses: %{200 => :ok}
       }
+
+  ## Handling Multi-Path Actions
+
+  Sometimes, a Phoenix controller action function will be used for multiple
+  router paths. Sometimes, the documentation for each path will differ
+  significantly. If you would like for each router path to pair with its own
+  docs, you can use the `multi` flag.
+
+      # Your router
+      defmodule MyRouter do
+        scope "/api" do
+          get "/first", MyController, :index
+          get "/:id/second", MyController, :index
+        end
+      end
+
+      # Your controller
+      defmodule MyController do
+        @doc [
+          # Flagged as an action with multiple docs
+          multi: true,
+
+          # All remaining top-level keys should be router paths
+          "/api/first": [
+            responses: %{200 => MyResponse}
+          ],
+          "/api/:id/second": [
+            path_params: [
+              id: [type: :integer, required: true]
+            ],
+            responses: ${200 => MyResponse}
+          ]
+        ]
+        def index(conn, _), do: conn
+      end
   """
 
   alias Phoenix.Router
 
   alias Rolodex.{
     Config,
-    Schema
+    PipelineConfig,
+    Field
   }
+
+  import Rolodex.Utils, only: [to_struct: 2, ok: 1]
 
   defstruct [
     :path,
     :verb,
+    auth: %{},
     body: %{},
     desc: "",
     headers: %{},
@@ -309,6 +372,7 @@ defmodule Rolodex.Route do
   @phoenix_route_params [:path, :pipe_through, :verb]
 
   @type t :: %__MODULE__{
+          auth: map(),
           body: map(),
           desc: binary(),
           headers: %{},
@@ -350,31 +414,29 @@ defmodule Rolodex.Route do
   """
   @spec new(Phoenix.Router.Route.t(), Rolodex.Config.t()) :: t() | nil
   def new(phoenix_route, config) do
-    with action_doc_data when is_map(action_doc_data) <- fetch_route_docs(phoenix_route, config) do
-      pipeline_config = fetch_pipeline_config(phoenix_route, config)
-
-      phoenix_route
-      |> Map.take(@phoenix_route_params)
-      |> deep_merge(pipeline_config)
-      |> deep_merge(action_doc_data)
-      |> to_struct()
+    with {:ok, desc, metadata} <- fetch_route_docs(phoenix_route),
+         {:ok, route_data} <- parse_route_docs(metadata, desc, phoenix_route, config) do
+      build_route(route_data, phoenix_route, config)
     else
       _ -> nil
     end
   end
 
-  defp to_struct(data), do: struct(__MODULE__, data)
+  defp build_route(route_data, phoenix_route, config) do
+    pipeline_config = fetch_pipeline_config(phoenix_route, config)
+
+    phoenix_route
+    |> Map.take(@phoenix_route_params)
+    |> deep_merge(pipeline_config)
+    |> deep_merge(route_data)
+    |> to_struct(__MODULE__)
+  end
 
   # Uses `Code.fetch_docs/1` to lookup `@doc` annotations for the controller action
-  defp fetch_route_docs(phoenix_route, config) do
+  defp fetch_route_docs(phoenix_route) do
     case do_docs_fetch(phoenix_route) do
-      {_, _, _, desc, metadata} ->
-        metadata
-        |> parse_param_fields()
-        |> Map.put(:desc, parse_description(desc, config))
-
-      _ ->
-        nil
+      {_, _, _, desc, metadata} -> {:ok, desc, metadata}
+      _ -> {:error, :not_found}
     end
   end
 
@@ -389,26 +451,91 @@ defmodule Rolodex.Route do
     end)
   end
 
+  defp parse_route_docs(nil, _, _, _), do: {:error, :not_found}
+
+  defp parse_route_docs(kwl, desc, route, config) when is_list(kwl) do
+    kwl
+    |> Map.new()
+    |> parse_route_docs(desc, route, config)
+  end
+
+  defp parse_route_docs(
+         %{multi: true} = metadata,
+         desc,
+         %Router.Route{path: path} = route,
+         config
+       ) do
+    metadata
+    |> get_doc_for_path(path)
+    |> parse_route_docs(desc, route, config)
+  end
+
+  defp parse_route_docs(metadata, desc, _, config) do
+    metadata
+    |> parse_param_fields()
+    |> Map.put(:desc, parse_description(desc, config))
+    |> ok()
+  end
+
+  # When finding docs keyed by route path, the path key could be a string or atom.
+  # So we want to handle both cases, safely (i.e. no `String.to_atom/1`)
+  defp get_doc_for_path(metadata, path) do
+    metadata
+    |> Enum.find(fn
+      {k, _} when is_atom(k) -> Atom.to_string(k) == path
+      {k, _} -> k == path
+    end)
+    |> case do
+      {_, doc} -> doc
+      _ -> nil
+    end
+  end
+
   defp parse_param_fields(metadata) do
-    metadata =
-      case Map.get(metadata, :body, nil) do
-        nil ->
-          metadata
+    metadata
+    |> parse_body()
+    |> parse_params()
+    |> parse_auth()
+  end
 
-        body ->
-          %{metadata | body: Schema.new_field(body)}
-      end
+  defp parse_body(metadata) do
+    case Map.get(metadata, :body) do
+      nil -> metadata
+      body -> %{metadata | body: Field.new(body)}
+    end
+  end
 
+  defp parse_params(metadata) do
     [:headers, :path_params, :query_params, :responses]
     |> Enum.reduce(metadata, fn key, acc ->
       fields =
         acc
         |> Map.get(key, %{})
-        |> Map.new(fn {k, v} -> {k, Schema.new_field(v)} end)
+        |> Map.new(fn {k, v} -> {k, Field.new(v)} end)
 
       Map.put(acc, key, fields)
     end)
   end
+
+  defp parse_auth(metadata) do
+    auth =
+      metadata
+      |> Map.get(:auth, %{})
+      |> do_parse_auth()
+      |> Map.new()
+
+    Map.put(metadata, :auth, auth)
+  end
+
+  defp do_parse_auth(auth, level \\ 0)
+  defp do_parse_auth({key, value}, _), do: {key, value}
+  defp do_parse_auth(auth, 0) when is_atom(auth), do: [{auth, []}]
+  defp do_parse_auth(auth, _) when is_atom(auth), do: {auth, []}
+
+  defp do_parse_auth(auth, level) when is_list(auth),
+    do: Enum.map(auth, &do_parse_auth(&1, level + 1))
+
+  defp do_parse_auth(auth, _), do: auth
 
   defp parse_description(:none, _), do: ""
 
@@ -432,7 +559,7 @@ defmodule Rolodex.Route do
     Enum.reduce(pipe_through, %{}, fn pt, acc ->
       pipeline_config =
         pipelines
-        |> Map.get(pt, %{})
+        |> Map.get(pt, %PipelineConfig{})
         |> Map.from_struct()
         |> parse_param_fields()
 

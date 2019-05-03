@@ -2,8 +2,6 @@ defmodule RolodexTest do
   use ExUnit.Case
   import ExUnit.CaptureIO
 
-  doctest Rolodex
-
   alias Rolodex.{Config, Route}
 
   alias Rolodex.Mocks.{
@@ -14,27 +12,144 @@ defmodule RolodexTest do
     Parent,
     SecondNested,
     TestRouter,
-    User
+    User,
+    UserResponse,
+    PaginatedUsersResponse,
+    ErrorResponse,
+    UserRequestBody
   }
+
+  defmodule ConfigNoFilters do
+    use Rolodex.Config
+    def spec(), do: [router: TestRouter]
+  end
+
+  defmodule ConfigWithFilters do
+    use Rolodex.Config
+
+    def spec() do
+      [
+        router: TestRouter,
+        filters: [%{path: "/api/demo/:id", verb: :delete}],
+        writer: Rolodex.Writers.Mock,
+        server_urls: ["https://api.example.com"]
+      ]
+    end
+
+    def auth_spec() do
+      [
+        JWTAuth: [
+          type: "http",
+          scheme: "bearer"
+        ],
+        TokenAuth: [type: "oauth2"],
+        OAuth: [
+          type: "oauth2",
+          flows: [
+            authorization_code: [
+              authorization_url: "https://applications.frame.io/oauth2/authorize",
+              token_url: "https://applications.frame.io/oauth2/token",
+              scopes: [
+                "user.read",
+                "account.read",
+                "account.write"
+              ]
+            ]
+          ]
+        ]
+      ]
+    end
+  end
 
   describe "#run/1" do
     test "Generates documentation and writes out to destination" do
-      config =
-        Config.new(
-          router: TestRouter,
-          filters: [%{path: "/api/demo/:id", verb: :delete}],
-          writer: %{module: Rolodex.Writers.Mock},
-          server_urls: ["https://api.example.com"]
-        )
-
-      result = capture_io(fn -> Rolodex.run(config) end) |> Jason.decode!()
+      result =
+        capture_io(fn ->
+          ConfigWithFilters
+          |> Config.new()
+          |> Rolodex.run()
+        end)
+        |> Jason.decode!()
 
       assert result == %{
                "components" => %{
+                 "requestBodies" => %{
+                   "UserRequestBody" => %{
+                     "content" => %{
+                       "application/json" => %{
+                         "examples" => %{
+                           "request" => %{"value" => %{"id" => "1"}}
+                         },
+                         "schema" => %{
+                           "$ref" => "#/components/schemas/User"
+                         }
+                       }
+                     },
+                     "description" => "A single user entity request body"
+                   }
+                 },
+                 "responses" => %{
+                   "ErrorResponse" => %{
+                     "content" => %{
+                       "application/json" => %{
+                         "examples" => %{},
+                         "schema" => %{
+                           "properties" => %{
+                             "message" => %{"type" => "string"},
+                             "status" => %{"type" => "integer"}
+                           },
+                           "type" => "object"
+                         }
+                       }
+                     },
+                     "description" => "An error response"
+                   },
+                   "PaginatedUsersResponse" => %{
+                     "content" => %{
+                       "application/json" => %{
+                         "examples" => %{
+                           "response" => %{"value" => [%{"id" => "1"}]}
+                         },
+                         "schema" => %{
+                           "properties" => %{
+                             "page" => %{"type" => "integer"},
+                             "total" => %{"type" => "integer"},
+                             "users" => %{
+                               "items" => %{
+                                 "$ref" => "#/components/schemas/User"
+                               },
+                               "type" => "array"
+                             }
+                           },
+                           "type" => "object"
+                         }
+                       }
+                     },
+                     "description" => "A paginated list of user entities"
+                   },
+                   "UserResponse" => %{
+                     "content" => %{
+                       "application/json" => %{
+                         "examples" => %{
+                           "response" => %{"value" => %{"id" => "1"}}
+                         },
+                         "schema" => %{
+                           "$ref" => "#/components/schemas/User"
+                         }
+                       }
+                     },
+                     "description" => "A single user entity response"
+                   }
+                 },
                  "schemas" => %{
                    "Comment" => %{
+                     "description" => "A comment record",
                      "properties" => %{
-                       "id" => %{"format" => "uuid", "type" => "string"},
+                       "id" => %{
+                         "format" => "uuid",
+                         "type" => "string",
+                         "description" => "The comment id"
+                       },
                        "text" => %{
                          "type" => "string"
                        }
@@ -42,6 +157,7 @@ defmodule RolodexTest do
                      "type" => "object"
                    },
                    "NotFound" => %{
+                     "description" => "Not found response",
                      "properties" => %{
                        "message" => %{
                          "type" => "string"
@@ -54,27 +170,42 @@ defmodule RolodexTest do
                      "type" => "object"
                    },
                    "User" => %{
+                     "type" => "object",
+                     "description" => "A user record",
+                     "required" => ["id", "email"],
                      "properties" => %{
-                       "comment" => %{"$ref" => "#/components/schemas/Comment"},
+                       "id" => %{
+                         "type" => "string",
+                         "format" => "uuid",
+                         "description" => "The id of the user"
+                       },
+                       "email" => %{
+                         "type" => "string",
+                         "description" => "The email of the user"
+                       },
+                       "comment" => %{
+                         "$ref" => "#/components/schemas/Comment"
+                       },
                        "comments" => %{
-                         "items" => %{"$ref" => "#/components/schemas/Comment"},
-                         "type" => "array"
+                         "type" => "array",
+                         "items" => %{
+                           "$ref" => "#/components/schemas/Comment"
+                         }
                        },
                        "comments_of_many_types" => %{
+                         "type" => "array",
+                         "description" => "List of text or comment",
                          "items" => %{
                            "oneOf" => [
                              %{
                                "type" => "string"
                              },
-                             %{"$ref" => "#/components/schemas/Comment"}
+                             %{
+                               "$ref" => "#/components/schemas/Comment"
+                             }
                            ]
-                         },
-                         "type" => "array"
+                         }
                        },
-                       "email" => %{
-                         "type" => "string"
-                       },
-                       "id" => %{"format" => "uuid", "type" => "string"},
                        "multi" => %{
                          "oneOf" => [
                            %{
@@ -83,9 +214,31 @@ defmodule RolodexTest do
                            %{"$ref" => "#/components/schemas/NotFound"}
                          ]
                        },
-                       "parent" => %{"$ref" => "#/components/schemas/Parent"}
-                     },
-                     "type" => "object"
+                       "parent" => %{
+                         "$ref" => "#/components/schemas/Parent"
+                       }
+                     }
+                   }
+                 },
+                 "securitySchemes" => %{
+                   "JWTAuth" => %{
+                     "type" => "http",
+                     "scheme" => "bearer"
+                   },
+                   "TokenAuth" => %{"type" => "oauth2"},
+                   "OAuth" => %{
+                     "type" => "oauth2",
+                     "flows" => %{
+                       "authorizationCode" => %{
+                         "authorizationUrl" => "https://applications.frame.io/oauth2/authorize",
+                         "tokenUrl" => "https://applications.frame.io/oauth2/token",
+                         "scopes" => [
+                           "user.read",
+                           "account.read",
+                           "account.write"
+                         ]
+                       }
+                     }
                    }
                  }
                },
@@ -95,26 +248,26 @@ defmodule RolodexTest do
                "paths" => %{
                  "/api/demo" => %{
                    "get" => %{
+                     "security" => [
+                       %{"JWTAuth" => []},
+                       %{"OAuth" => ["user.read"]},
+                       %{"TokenAuth" => ["user.read"]}
+                     ],
                      "parameters" => [
                        %{
-                         "description" => "",
                          "in" => "header",
                          "name" => "X-Request-Id",
                          "required" => true,
                          "schema" => %{"format" => "uuid", "type" => "string"}
                        },
                        %{
-                         "description" => "",
                          "in" => "path",
                          "name" => "account_id",
-                         "required" => false,
                          "schema" => %{"format" => "uuid", "type" => "string"}
                        },
                        %{
-                         "description" => "",
                          "in" => "query",
                          "name" => "id",
-                         "required" => false,
                          "schema" => %{
                            "default" => 2,
                            "maximum" => 10,
@@ -123,26 +276,59 @@ defmodule RolodexTest do
                          }
                        },
                        %{
-                         "description" => "",
                          "in" => "query",
                          "name" => "update",
-                         "required" => false,
                          "schema" => %{
                            "type" => "boolean"
                          }
                        }
                      ],
                      "requestBody" => %{
+                       "$ref" => "#/components/requestBodies/UserRequestBody"
+                     },
+                     "responses" => %{
+                       "200" => %{
+                         "$ref" => "#/components/responses/UserResponse"
+                       },
+                       "201" => %{
+                         "$ref" => "#/components/responses/PaginatedUsersResponse"
+                       },
+                       "404" => %{
+                         "$ref" => "#/components/responses/ErrorResponse"
+                       }
+                     },
+                     "summary" => "It's a test!"
+                   }
+                 },
+                 "/api/demo/{id}" => %{
+                   "post" => %{
+                     "security" => [%{"JWTAuth" => []}],
+                     "parameters" => [
+                       %{
+                         "in" => "header",
+                         "name" => "X-Request-Id",
+                         "schema" => %{
+                           "type" => "string"
+                         }
+                       }
+                     ],
+                     "responses" => %{},
+                     "summary" => ""
+                   },
+                   "put" => %{
+                     "security" => [],
+                     "parameters" => [],
+                     "requestBody" => %{
                        "content" => %{
                          "application/json" => %{
                            "schema" => %{
+                             "type" => "object",
                              "properties" => %{
-                               "id" => %{"format" => "uuid", "type" => "string"},
-                               "name" => %{
-                                 "type" => "string"
+                               "id" => %{
+                                 "type" => "string",
+                                 "format" => "uuid"
                                }
-                             },
-                             "type" => "object"
+                             }
                            }
                          }
                        }
@@ -151,59 +337,49 @@ defmodule RolodexTest do
                        "200" => %{
                          "content" => %{
                            "application/json" => %{
-                             "schema" => %{"$ref" => "#/components/schemas/User"}
-                           }
-                         }
-                       },
-                       "201" => %{
-                         "content" => %{
-                           "application/json" => %{
                              "schema" => %{
-                               "type" => "array",
-                               "items" => %{
-                                 "$ref" => "#/components/schemas/User"
-                               }
-                             }
-                           }
-                         }
-                       },
-                       "404" => %{
-                         "content" => %{
-                           "application/json" => %{
-                             "schema" => %{
+                               "type" => "object",
                                "properties" => %{
-                                 "message" => %{
-                                   "type" => "string"
-                                 },
-                                 "status" => %{
-                                   "type" => "integer"
+                                 "id" => %{
+                                   "type" => "string",
+                                   "format" => "uuid"
                                  }
-                               },
-                               "type" => "object"
+                               }
                              }
                            }
                          }
                        }
                      },
-                     "summary" => "It's a test!"
+                     "summary" => ""
                    }
                  },
-                 "/api/demo/{id}" => %{
-                   "post" => %{
+                 "/api/multi" => %{
+                   "get" => %{
+                     "parameters" => [],
+                     "responses" => %{
+                       "200" => %{"$ref" => "#/components/responses/UserResponse"},
+                       "404" => %{"$ref" => "#/components/responses/ErrorResponse"}
+                     },
+                     "security" => [%{"JWTAuth" => []}],
+                     "summary" => "It's an action used for multiple routes"
+                   }
+                 },
+                 "/api/nested/{nested_id}/multi" => %{
+                   "get" => %{
                      "parameters" => [
                        %{
-                         "description" => "",
-                         "in" => "header",
-                         "name" => "X-Request-Id",
-                         "required" => false,
-                         "schema" => %{
-                           "type" => "string"
-                         }
+                         "in" => "path",
+                         "name" => "nested_id",
+                         "required" => true,
+                         "schema" => %{"format" => "uuid", "type" => "string"}
                        }
                      ],
-                     "requestBody" => %{},
-                     "responses" => %{},
-                     "summary" => ""
+                     "responses" => %{
+                       "200" => %{"$ref" => "#/components/responses/UserResponse"},
+                       "404" => %{"$ref" => "#/components/responses/ErrorResponse"}
+                     },
+                     "security" => [%{"JWTAuth" => []}],
+                     "summary" => "It's an action used for multiple routes"
                    }
                  }
                }
@@ -214,17 +390,17 @@ defmodule RolodexTest do
   describe "#generate_routes/1" do
     test "Generates a list of %Route{} structs for the given router" do
       result =
-        Config.new(router: TestRouter)
+        ConfigNoFilters
+        |> Config.new()
         |> Rolodex.generate_routes()
 
       assert result |> Enum.at(0) == %Route{
-               body: %{
-                 type: :object,
-                 properties: %{
-                   id: %{type: :uuid},
-                   name: %{type: :string, desc: "The name"}
-                 }
+               auth: %{
+                 JWTAuth: [],
+                 TokenAuth: ["user.read"],
+                 OAuth: ["user.read"]
                },
+               body: %{type: :ref, ref: UserRequestBody},
                desc: "It's a test!",
                headers: %{
                  "X-Request-Id" => %{type: :uuid, required: true}
@@ -245,18 +421,9 @@ defmodule RolodexTest do
                  update: %{type: :boolean}
                },
                responses: %{
-                 200 => %{type: :ref, ref: User},
-                 201 => %{
-                   type: :list,
-                   of: [%{type: :ref, ref: User}]
-                 },
-                 404 => %{
-                   type: :object,
-                   properties: %{
-                     status: %{type: :integer},
-                     message: %{type: :string}
-                   }
-                 }
+                 200 => %{type: :ref, ref: UserResponse},
+                 201 => %{type: :ref, ref: PaginatedUsersResponse},
+                 404 => %{type: :ref, ref: ErrorResponse}
                },
                tags: ["foo", "bar"],
                verb: :get
@@ -264,6 +431,7 @@ defmodule RolodexTest do
 
       assert result |> Enum.at(1) == %Route{
                desc: "",
+               auth: %{JWTAuth: []},
                headers: %{
                  "X-Request-Id" => %{type: :string}
                },
@@ -274,30 +442,25 @@ defmodule RolodexTest do
 
     test "It filters out routes that match the config" do
       num_routes =
-        Config.new(router: TestRouter, filters: [%{path: "/api/demo/:id", verb: :delete}])
+        ConfigWithFilters
+        |> Config.new()
         |> Rolodex.generate_routes()
         |> length()
 
-      assert num_routes == 2
+      assert num_routes == 5
     end
   end
 
-  describe "#generate_schemas/1" do
+  describe "#generate_refs/1" do
     test "Generates a map of unique schemas from route header, body, query, path, and responses" do
       routes = [
         %Route{
           headers: %{"X-Request-Id" => %{type: :uuid}},
-          body: %{
-            type: :object,
-            properties: %{
-              id: %{type: :uuid},
-              nested: %{type: :ref, ref: User}
-            }
-          },
+          body: %{type: :ref, ref: UserRequestBody},
           query_params: %{id: %{type: :uuid}},
           path_params: %{nested: %{type: :ref, ref: NotFound}},
           responses: %{
-            200 => %{type: :ref, ref: User}
+            200 => %{type: :ref, ref: UserResponse}
           }
         },
         %Route{
@@ -306,13 +469,16 @@ defmodule RolodexTest do
           query_params: %{nested: %{type: :ref, ref: NotFound}},
           path_params: %{id: %{type: :uuid}},
           responses: %{
-            200 => %{type: :ref, ref: User}
+            200 => %{type: :ref, ref: UserResponse}
           }
         }
       ]
 
-      schemas = Rolodex.generate_schemas(routes)
+      %{responses: responses, request_bodies: request_bodies, schemas: schemas} =
+        Rolodex.generate_refs(routes)
 
+      assert Map.keys(responses) == [UserResponse]
+      assert Map.keys(request_bodies) == [UserRequestBody]
       assert Map.keys(schemas) == [Comment, NotFound, Parent, User]
     end
 
@@ -321,7 +487,7 @@ defmodule RolodexTest do
         %Route{
           headers: %{"X-Request-Id" => %{type: :uuid}},
           responses: %{
-            200 => %{type: :ref, ref: User},
+            200 => %{type: :ref, ref: UserResponse},
             201 => :ok,
             203 => "moved permanently",
             123 => %{"hello" => "world"},
@@ -330,7 +496,11 @@ defmodule RolodexTest do
         }
       ]
 
-      schemas = Rolodex.generate_schemas(routes)
+      %{responses: responses, request_bodies: request_bodies, schemas: schemas} =
+        Rolodex.generate_refs(routes)
+
+      assert Map.keys(request_bodies) == []
+      assert Map.keys(responses) == [UserResponse]
 
       assert Map.keys(schemas) == [
                Comment,
@@ -341,126 +511,6 @@ defmodule RolodexTest do
                SecondNested,
                User
              ]
-
-      assert schemas == %{
-               Comment => %{
-                 type: :object,
-                 desc: "A comment record",
-                 properties: %{
-                   id: %{
-                     desc: "The comment id",
-                     type: :uuid
-                   },
-                   text: %{
-                     type: :string
-                   }
-                 }
-               },
-               FirstNested => %{
-                 type: :object,
-                 desc: nil,
-                 properties: %{
-                   nested: %{
-                     type: :ref,
-                     ref: SecondNested
-                   }
-                 }
-               },
-               NestedDemo => %{
-                 type: :object,
-                 desc: nil,
-                 properties: %{
-                   nested: %{
-                     type: :ref,
-                     ref: FirstNested
-                   }
-                 }
-               },
-               NotFound => %{
-                 type: :object,
-                 desc: "Not found response",
-                 properties: %{
-                   message: %{
-                     type: :string
-                   }
-                 }
-               },
-               Parent => %{
-                 type: :object,
-                 desc: nil,
-                 properties: %{
-                   child: %{
-                     type: :ref,
-                     ref: User
-                   }
-                 }
-               },
-               SecondNested => %{
-                 type: :object,
-                 desc: nil,
-                 properties: %{
-                   id: %{
-                     type: :uuid
-                   }
-                 }
-               },
-               User => %{
-                 desc: "A user record",
-                 properties: %{
-                   comment: %{
-                     type: :ref,
-                     ref: Comment
-                   },
-                   comments: %{
-                     of: [
-                       %{
-                         type: :ref,
-                         ref: Comment
-                       }
-                     ],
-                     type: :list
-                   },
-                   comments_of_many_types: %{
-                     desc: "List of text or comment",
-                     of: [
-                       %{
-                         type: :string
-                       },
-                       %{
-                         type: :ref,
-                         ref: Comment
-                       }
-                     ],
-                     type: :list
-                   },
-                   email: %{
-                     desc: "The email of the user",
-                     type: :string
-                   },
-                   id: %{
-                     desc: "The id of the user",
-                     type: :uuid
-                   },
-                   multi: %{
-                     of: [
-                       %{
-                         type: :string
-                       },
-                       %{
-                         type: :ref,
-                         ref: NotFound
-                       }
-                     ],
-                     type: :one_of
-                   },
-                   parent: %{
-                     type: :ref,
-                     ref: Parent
-                   }
-                 },
-                 type: :object
-               }
-             }
     end
   end
 end

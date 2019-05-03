@@ -1,7 +1,7 @@
 defmodule Rolodex.Writers.FileWriter do
   @behaviour Rolodex.Writer
 
-  alias Rolodex.{Config, WriterConfig}
+  alias Rolodex.Config
 
   @impl Rolodex.Writer
   def init(config) do
@@ -23,7 +23,7 @@ defmodule Rolodex.Writers.FileWriter do
     File.close(io_device)
   end
 
-  defp fetch_file_name(%Config{writer: %WriterConfig{file_name: file_name}}) do
+  defp fetch_file_name(%Config{file_name: file_name}) do
     case file_name do
       "" -> {:error, :file_name_missing}
       nil -> {:error, :file_name_missing}

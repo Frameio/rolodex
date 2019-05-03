@@ -2,9 +2,40 @@ defmodule Rolodex.RouteTest do
   use ExUnit.Case
 
   alias Phoenix.Router
-  alias Rolodex.Mocks.{TestController, TestRouter, User}
+
+  alias Rolodex.Mocks.{
+    TestController,
+    TestRouter,
+    UserResponse,
+    PaginatedUsersResponse,
+    ErrorResponse,
+    UserRequestBody
+  }
 
   alias Rolodex.{Config, Route}
+
+  defmodule(BasicConfig, do: use(Rolodex.Config))
+
+  defmodule FullConfig do
+    use Rolodex.Config
+
+    def pipelines_spec() do
+      %{
+        api: %{
+          auth: :SharedAuth,
+          headers: %{"X-Request-Id" => %{type: :uuid, required: true}},
+          query_params: %{foo: :string}
+        },
+        web: %{
+          headers: %{"X-Request-Id" => %{type: :uuid, required: true}},
+          query_params: %{foo: :string, bar: :boolean}
+        },
+        socket: %{
+          headers: %{bar: :baz}
+        }
+      }
+    end
+  end
 
   describe "#matches_filter?/2" do
     setup [:setup_config]
@@ -67,17 +98,16 @@ defmodule Rolodex.RouteTest do
       result = Route.new(phoenix_route, config)
 
       assert result == %Route{
+               auth: %{
+                 JWTAuth: [],
+                 TokenAuth: ["user.read"],
+                 OAuth: ["user.read"]
+               },
                desc: "It's a test!",
                headers: %{
                  "X-Request-Id" => %{type: :uuid, required: true}
                },
-               body: %{
-                 type: :object,
-                 properties: %{
-                   id: %{type: :uuid},
-                   name: %{type: :string, desc: "The name"}
-                 }
-               },
+               body: %{type: :ref, ref: UserRequestBody},
                query_params: %{
                  id: %{
                    type: :string,
@@ -92,18 +122,9 @@ defmodule Rolodex.RouteTest do
                  account_id: %{type: :uuid}
                },
                responses: %{
-                 200 => %{type: :ref, ref: User},
-                 201 => %{
-                   type: :list,
-                   of: [%{type: :ref, ref: User}]
-                 },
-                 404 => %{
-                   type: :object,
-                   properties: %{
-                     status: %{type: :integer},
-                     message: %{type: :string}
-                   }
-                 }
+                 200 => %{type: :ref, ref: UserResponse},
+                 201 => %{type: :ref, ref: PaginatedUsersResponse},
+                 404 => %{type: :ref, ref: ErrorResponse}
                },
                metadata: %{public: true},
                tags: ["foo", "bar"],
@@ -125,18 +146,16 @@ defmodule Rolodex.RouteTest do
       result = Route.new(phoenix_route, config)
 
       assert result == %Route{
+               auth: %{
+                 JWTAuth: [],
+                 TokenAuth: ["user.read"],
+                 OAuth: ["user.read"]
+               },
                desc: "It's a test!",
                headers: %{
                  "X-Request-Id" => %{type: :uuid, required: true}
                },
-               body: %{
-                 type: :object,
-                 properties: %{
-                   id: %{type: :uuid},
-                   name: %{type: :string, desc: "The name"},
-                   foo: %{type: :string}
-                 }
-               },
+               body: %{type: :ref, ref: UserRequestBody},
                query_params: %{
                  id: %{
                    type: :string,
@@ -153,18 +172,9 @@ defmodule Rolodex.RouteTest do
                  account_id: %{type: :uuid}
                },
                responses: %{
-                 200 => %{type: :ref, ref: User},
-                 201 => %{
-                   type: :list,
-                   of: [%{type: :ref, ref: User}]
-                 },
-                 404 => %{
-                   type: :object,
-                   properties: %{
-                     status: %{type: :integer},
-                     message: %{type: :string}
-                   }
-                 }
+                 200 => %{type: :ref, ref: UserResponse},
+                 201 => %{type: :ref, ref: PaginatedUsersResponse},
+                 404 => %{type: :ref, ref: ErrorResponse}
                },
                metadata: %{public: true},
                tags: ["foo", "bar"],
@@ -172,6 +182,51 @@ defmodule Rolodex.RouteTest do
                pipe_through: [:web],
                verb: :get
              }
+    end
+
+    test "It uses the Phoenix route path to pull out docs for a multi-headed controller action",
+         %{
+           config: config
+         } do
+      result =
+        %Router.Route{
+          plug: TestController,
+          opts: :multi,
+          path: "/api/nested/:nested_id/multi",
+          verb: :get
+        }
+        |> Route.new(config)
+
+      assert result == %Route{
+               auth: %{JWTAuth: []},
+               desc: "It's an action used for multiple routes",
+               path_params: %{
+                 nested_id: %{type: :uuid, required: true}
+               },
+               responses: %{
+                 200 => %{type: :ref, ref: UserResponse},
+                 404 => %{type: :ref, ref: ErrorResponse}
+               },
+               path: "/api/nested/:nested_id/multi",
+               verb: :get,
+               pipe_through: nil
+             }
+    end
+
+    test "It returns nil if no path matches the Phoenix route path for a multi-headed controller action",
+         %{
+           config: config
+         } do
+      result =
+        %Router.Route{
+          plug: TestController,
+          opts: :multi,
+          path: "/multi/:nested_id/multi/non-existent",
+          verb: :get
+        }
+        |> Route.new(config)
+
+      assert result == nil
     end
 
     test "Controller action params will win if in conflict with pipeline params", %{
@@ -185,8 +240,33 @@ defmodule Rolodex.RouteTest do
         verb: :get
       }
 
-      %Route{headers: headers} = Route.new(phoenix_route, config)
+      %Route{auth: auth, headers: headers} = Route.new(phoenix_route, config)
       assert headers == %{"X-Request-Id" => %{type: :string, required: true}}
+      assert auth == %{JWTAuth: [], SharedAuth: []}
+    end
+
+    test "It processes request body and responses with plain maps", %{config: config} do
+      phoenix_route = %Router.Route{
+        plug: TestController,
+        opts: :with_bare_maps,
+        path: "/v2/test",
+        pipe_through: [],
+        verb: :get
+      }
+
+      %Route{body: body, responses: responses} = Route.new(phoenix_route, config)
+
+      assert body == %{
+               type: :object,
+               properties: %{id: %{type: :uuid}}
+             }
+
+      assert responses == %{
+               200 => %{
+                 type: :object,
+                 properties: %{id: %{type: :uuid}}
+               }
+             }
     end
 
     test "It handles an undocumented route" do
@@ -198,7 +278,7 @@ defmodule Rolodex.RouteTest do
         verb: :post
       }
 
-      assert Route.new(phoenix_route, Config.new()) == %Route{
+      assert Route.new(phoenix_route, Config.new(BasicConfig)) == %Route{
                desc: "",
                headers: %{},
                body: %{},
@@ -221,32 +301,9 @@ defmodule Rolodex.RouteTest do
         verb: :post
       }
 
-      assert Route.new(phoenix_route, Config.new()) == nil
+      assert Route.new(phoenix_route, Config.new(BasicConfig)) == nil
     end
   end
 
-  def setup_config(_) do
-    config =
-      Config.new(%{
-        pipelines: %{
-          api: %{
-            headers: %{"X-Request-Id" => %{type: :uuid, required: true}},
-            query_params: %{foo: :string}
-          },
-          web: %{
-            body: %{
-              type: :object,
-              properties: %{foo: :string}
-            },
-            headers: %{"X-Request-Id" => %{type: :uuid, required: true}},
-            query_params: %{foo: :string, bar: :boolean}
-          },
-          socket: %{
-            headers: %{bar: :baz}
-          }
-        }
-      })
-
-    [config: config]
-  end
+  defp setup_config(_), do: [config: Config.new(FullConfig)]
 end
