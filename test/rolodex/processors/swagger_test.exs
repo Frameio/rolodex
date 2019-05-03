@@ -124,7 +124,7 @@ defmodule Rolodex.Processors.SwaggerTest do
                      "content" => %{
                        "application/json" => %{
                          "examples" => %{
-                           "request" => %{"id" => "1"}
+                           "request" => %{"value" => %{"id" => "1"}}
                          },
                          "schema" => %{
                            "$ref" => "#/components/schemas/User"
@@ -138,7 +138,9 @@ defmodule Rolodex.Processors.SwaggerTest do
                    "UserResponse" => %{
                      "content" => %{
                        "application/json" => %{
-                         "examples" => %{"response" => %{"id" => "1"}},
+                         "examples" => %{
+                           "response" => %{"value" => %{"id" => "1"}}
+                         },
                          "schema" => %{
                            "$ref" => "#/components/schemas/User"
                          }
@@ -364,7 +366,6 @@ defmodule Rolodex.Processors.SwaggerTest do
                  get: %{
                    summary: "GET /foo",
                    security: [],
-                   requestBody: %{},
                    parameters: [],
                    responses: %{
                      200 => %{
@@ -377,7 +378,6 @@ defmodule Rolodex.Processors.SwaggerTest do
                  get: %{
                    summary: "GET /foo/{id}",
                    security: [],
-                   requestBody: %{},
                    parameters: [],
                    responses: %{
                      200 => %{
@@ -388,7 +388,6 @@ defmodule Rolodex.Processors.SwaggerTest do
                  post: %{
                    summary: "POST /foo/{id}",
                    security: [],
-                   requestBody: %{},
                    parameters: [],
                    responses: %{
                      200 => %{
@@ -420,7 +419,7 @@ defmodule Rolodex.Processors.SwaggerTest do
                  "UserRequestBody" => %{
                    content: %{
                      "application/json" => %{
-                       examples: %{request: %{id: "1"}},
+                       examples: %{request: %{value: %{id: "1"}}},
                        schema: %{
                          "$ref" => "#/components/schemas/User"
                        }
@@ -433,7 +432,7 @@ defmodule Rolodex.Processors.SwaggerTest do
                  "UserResponse" => %{
                    content: %{
                      "application/json" => %{
-                       examples: %{response: %{id: "1"}},
+                       examples: %{response: %{value: %{id: "1"}}},
                        schema: %{
                          "$ref" => "#/components/schemas/User"
                        }

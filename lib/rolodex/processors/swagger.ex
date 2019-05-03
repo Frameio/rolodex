@@ -21,7 +21,7 @@ defmodule Rolodex.Processors.Swagger do
     |> process_headers()
     |> Map.put(:paths, process_routes(routes, config))
     |> Map.put(:components, process_refs(serialized_refs, config))
-    |> Jason.encode!()
+    |> Jason.encode!(pretty: true)
   end
 
   @impl Rolodex.Processor
@@ -65,7 +65,7 @@ defmodule Rolodex.Processors.Swagger do
   end
 
   defp process_route(route, config) do
-    %{
+    result = %{
       # Swagger prefers `summary` for short, one-line descriptions of a route,
       # whereas `description` is meant for multi-line markdown explainers.
       #
@@ -73,9 +73,13 @@ defmodule Rolodex.Processors.Swagger do
       summary: route.desc,
       parameters: process_params(route),
       security: process_auth(route),
-      requestBody: process_body(route, config),
       responses: process_responses(route, config)
     }
+
+    case process_body(route, config) do
+      body when map_size(body) == 0 -> result
+      body -> Map.put(result, :requestBody, body)
+    end
   end
 
   defp process_params(%Route{headers: headers, path_params: path, query_params: query}) do
@@ -172,9 +176,12 @@ defmodule Rolodex.Processors.Swagger do
   defp process_content_body_ref_data(%{schema: schema, examples: examples}) do
     %{
       schema: process_schema_field(schema),
-      examples: examples
+      examples: process_content_body_examples(examples)
     }
   end
+
+  defp process_content_body_examples(examples),
+    do: Map.new(examples, fn {name, example} -> {name, %{value: example}} end)
 
   defp process_schema_refs(schemas) do
     schemas
