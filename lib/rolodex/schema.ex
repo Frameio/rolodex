@@ -64,7 +64,10 @@ defmodule Rolodex.Schema do
 
       def __schema__(:name), do: unquote(name)
       def __schema__(:desc), do: unquote(Keyword.get(opts, :desc, nil))
-      def __schema__(:fields), do: @fields |> Enum.reverse()
+
+      def __schema__(:fields) do
+        Map.new(@fields, fn {id, opts} -> {id, Field.new(opts)} end)
+      end
     end
   end
 
@@ -103,12 +106,7 @@ defmodule Rolodex.Schema do
   """
   defmacro field(identifier, type, opts \\ []) do
     quote do
-      @fields unquote(identifier)
-
-      def __field__(unquote(identifier)) do
-        field = ([type: unquote(type)] ++ unquote(opts)) |> Field.new()
-        {unquote(identifier), field}
-      end
+      @fields {unquote(identifier), [type: unquote(type)] ++ unquote(opts)}
     end
   end
 
@@ -209,12 +207,8 @@ defmodule Rolodex.Schema do
   @spec to_map(module()) :: map()
   def to_map(schema) do
     desc = schema.__schema__(:desc)
-
-    props =
-      schema.__schema__(:fields)
-      |> Map.new(&schema.__field__/1)
-
-    Field.new(type: :object, properties: props, desc: desc)
+    fields = schema.__schema__(:fields)
+    Field.new(type: :object, properties: fields, desc: desc)
   end
 
   @doc """

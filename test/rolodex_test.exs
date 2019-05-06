@@ -216,6 +216,15 @@ defmodule RolodexTest do
                        },
                        "parent" => %{
                          "$ref" => "#/components/schemas/Parent"
+                       },
+                       "private" => %{
+                         "type" => "boolean"
+                       },
+                       "archived" => %{
+                         "type" => "boolean"
+                       },
+                       "active" => %{
+                         "type" => "boolean"
                        }
                      }
                    }
