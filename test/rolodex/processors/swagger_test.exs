@@ -102,6 +102,7 @@ defmodule Rolodex.Processors.SwaggerTest do
                  "/foo" => %{
                    "get" => %{
                      "summary" => "It does a thing",
+                     "tags" => [],
                      "security" => [
                        %{"JWTAuth" => []},
                        %{"OAuth" => ["user.read"]}
@@ -197,6 +198,15 @@ defmodule Rolodex.Processors.SwaggerTest do
                        },
                        "parent" => %{
                          "$ref" => "#/components/schemas/Parent"
+                       },
+                       "private" => %{
+                         "type" => "boolean"
+                       },
+                       "archived" => %{
+                         "type" => "boolean"
+                       },
+                       "active" => %{
+                         "type" => "boolean"
                        }
                      }
                    }
@@ -283,6 +293,7 @@ defmodule Rolodex.Processors.SwaggerTest do
                "/foo" => %{
                  get: %{
                    summary: "It does a thing",
+                   tags: [],
                    security: [%{JWTAuth: []}],
                    parameters: [
                      %{
@@ -367,6 +378,7 @@ defmodule Rolodex.Processors.SwaggerTest do
                    summary: "GET /foo",
                    security: [],
                    parameters: [],
+                   tags: [],
                    responses: %{
                      200 => %{
                        "$ref" => "#/components/responses/UserResponse"
@@ -379,6 +391,7 @@ defmodule Rolodex.Processors.SwaggerTest do
                    summary: "GET /foo/{id}",
                    security: [],
                    parameters: [],
+                   tags: [],
                    responses: %{
                      200 => %{
                        "$ref" => "#/components/responses/UserResponse"
@@ -389,6 +402,7 @@ defmodule Rolodex.Processors.SwaggerTest do
                    summary: "POST /foo/{id}",
                    security: [],
                    parameters: [],
+                   tags: [],
                    responses: %{
                      200 => %{
                        "$ref" => "#/components/responses/UserResponse"
@@ -489,7 +503,10 @@ defmodule Rolodex.Processors.SwaggerTest do
                      },
                      parent: %{
                        "$ref" => "#/components/schemas/Parent"
-                     }
+                     },
+                     private: %{type: :boolean},
+                     archived: %{type: :boolean},
+                     active: %{type: :boolean}
                    }
                  }
                },
