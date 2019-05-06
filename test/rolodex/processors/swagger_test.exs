@@ -197,6 +197,15 @@ defmodule Rolodex.Processors.SwaggerTest do
                        },
                        "parent" => %{
                          "$ref" => "#/components/schemas/Parent"
+                       },
+                       "private" => %{
+                         "type" => "boolean"
+                       },
+                       "archived" => %{
+                         "type" => "boolean"
+                       },
+                       "active" => %{
+                         "type" => "boolean"
                        }
                      }
                    }
@@ -489,7 +498,10 @@ defmodule Rolodex.Processors.SwaggerTest do
                      },
                      parent: %{
                        "$ref" => "#/components/schemas/Parent"
-                     }
+                     },
+                     private: %{type: :boolean},
+                     archived: %{type: :boolean},
+                     active: %{type: :boolean}
                    }
                  }
                },

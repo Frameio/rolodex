@@ -1,6 +1,12 @@
 defmodule Rolodex.Mocks.User do
   use Rolodex.Schema
 
+  @configs [
+    private: :boolean,
+    archived: :boolean,
+    active: :boolean
+  ]
+
   schema "User", desc: "A user record" do
     field(:id, :uuid, desc: "The id of the user", required: true)
     field(:email, :string, desc: "The email of the user", required: true)
@@ -22,6 +28,9 @@ defmodule Rolodex.Mocks.User do
 
     # A field with multiple possible types
     field(:multi, :one_of, of: [:string, Rolodex.Mocks.NotFound])
+
+    # Can use a for comprehension to define many fields
+    for {name, type} <- @configs, do: field(name, type)
   end
 end
 
