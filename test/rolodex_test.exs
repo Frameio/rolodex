@@ -297,7 +297,8 @@ defmodule RolodexTest do
                          "$ref" => "#/components/responses/ErrorResponse"
                        }
                      },
-                     "summary" => "It's a test!"
+                     "summary" => "It's a test!",
+                     "tags" => ["foo", "bar"]
                    }
                  },
                  "/api/demo/{id}" => %{
@@ -313,7 +314,8 @@ defmodule RolodexTest do
                        }
                      ],
                      "responses" => %{},
-                     "summary" => ""
+                     "summary" => "",
+                     "tags" => []
                    },
                    "put" => %{
                      "security" => [],
@@ -350,7 +352,8 @@ defmodule RolodexTest do
                          }
                        }
                      },
-                     "summary" => ""
+                     "summary" => "",
+                     "tags" => []
                    }
                  },
                  "/api/multi" => %{
@@ -361,7 +364,8 @@ defmodule RolodexTest do
                        "404" => %{"$ref" => "#/components/responses/ErrorResponse"}
                      },
                      "security" => [%{"JWTAuth" => []}],
-                     "summary" => "It's an action used for multiple routes"
+                     "summary" => "It's an action used for multiple routes",
+                     "tags" => []
                    }
                  },
                  "/api/nested/{nested_id}/multi" => %{
@@ -379,7 +383,8 @@ defmodule RolodexTest do
                        "404" => %{"$ref" => "#/components/responses/ErrorResponse"}
                      },
                      "security" => [%{"JWTAuth" => []}],
-                     "summary" => "It's an action used for multiple routes"
+                     "summary" => "It's an action used for multiple routes",
+                     "tags" => []
                    }
                  }
                }

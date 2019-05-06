@@ -69,6 +69,7 @@ defmodule Rolodex.Processors.Swagger do
       #
       # TODO(bceskavich): we could support both?
       summary: route.desc,
+      tags: route.tags,
       parameters: process_params(route),
       security: process_auth(route),
       responses: process_responses(route, config)
