@@ -74,6 +74,7 @@ defmodule Rolodex.Processors.SwaggerTest do
 
       routes = [
         %Route{
+          id: "foo",
           auth: %{
             JWTAuth: [],
             OAuth: ["user.read"]
@@ -101,6 +102,7 @@ defmodule Rolodex.Processors.SwaggerTest do
                "paths" => %{
                  "/foo" => %{
                    "get" => %{
+                     "operationId" => "foo",
                      "summary" => "It does a thing",
                      "tags" => [],
                      "security" => [
@@ -258,6 +260,7 @@ defmodule Rolodex.Processors.SwaggerTest do
     test "It takes a list of routes and refs and returns a formatted map" do
       routes = [
         %Route{
+          id: "foo",
           desc: "It does a thing",
           auth: %{JWTAuth: []},
           headers: %{
@@ -292,6 +295,7 @@ defmodule Rolodex.Processors.SwaggerTest do
       assert processed == %{
                "/foo" => %{
                  get: %{
+                   operationId: "foo",
                    summary: "It does a thing",
                    tags: [],
                    security: [%{JWTAuth: []}],
@@ -353,18 +357,21 @@ defmodule Rolodex.Processors.SwaggerTest do
     test "It collects routes by path" do
       routes = [
         %Route{
+          id: "foo",
           path: "/foo",
           verb: :get,
           desc: "GET /foo",
           responses: %{200 => %{type: :ref, ref: UserResponse}}
         },
         %Route{
+          id: "foobar",
           path: "/foo/:id",
           verb: :get,
           desc: "GET /foo/{id}",
           responses: %{200 => %{type: :ref, ref: UserResponse}}
         },
         %Route{
+          id: "foobuzz",
           path: "/foo/:id",
           verb: :post,
           desc: "POST /foo/{id}",
@@ -375,6 +382,7 @@ defmodule Rolodex.Processors.SwaggerTest do
       assert Swagger.process_routes(routes, Config.new(BasicConfig)) == %{
                "/foo" => %{
                  get: %{
+                   operationId: "foo",
                    summary: "GET /foo",
                    security: [],
                    parameters: [],
@@ -388,6 +396,7 @@ defmodule Rolodex.Processors.SwaggerTest do
                },
                "/foo/{id}" => %{
                  get: %{
+                   operationId: "foobar",
                    summary: "GET /foo/{id}",
                    security: [],
                    parameters: [],
@@ -399,6 +408,7 @@ defmodule Rolodex.Processors.SwaggerTest do
                    }
                  },
                  post: %{
+                   operationId: "foobuzz",
                    summary: "POST /foo/{id}",
                    security: [],
                    parameters: [],
