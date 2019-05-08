@@ -3,6 +3,7 @@ defmodule Rolodex.Mocks.TestController do
     UserRequestBody,
     UserResponse,
     PaginatedUsersResponse,
+    PaginationHeaders,
     ErrorResponse
   }
 
@@ -12,7 +13,7 @@ defmodule Rolodex.Mocks.TestController do
       TokenAuth: ["user.read"],
       OAuth: ["user.read"]
     ],
-    headers: %{"X-Request-Id" => %{type: :uuid, required: true}},
+    headers: PaginationHeaders,
     query_params: %{
       id: %{
         type: :string,
@@ -69,6 +70,7 @@ defmodule Rolodex.Mocks.TestController do
 
   @doc [
     body: %{id: :uuid},
+    headers: %{"X-Request-Id" => %{type: :uuid, required: true}},
     responses: %{
       200 => %{id: :uuid}
     }

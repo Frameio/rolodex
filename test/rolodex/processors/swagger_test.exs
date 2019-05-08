@@ -6,7 +6,8 @@ defmodule Rolodex.Processors.SwaggerTest do
     Response,
     Route,
     RequestBody,
-    Schema
+    Schema,
+    Headers
   }
 
   alias Rolodex.Processors.Swagger
@@ -15,7 +16,8 @@ defmodule Rolodex.Processors.SwaggerTest do
     ErrorResponse,
     User,
     UserRequestBody,
-    UserResponse
+    UserResponse,
+    RateLimitHeaders
   }
 
   defmodule(BasicConfig, do: use(Rolodex.Config))
@@ -69,6 +71,9 @@ defmodule Rolodex.Processors.SwaggerTest do
         },
         schemas: %{
           User => Schema.to_map(User)
+        },
+        headers: %{
+          RateLimitHeaders => Headers.to_map(RateLimitHeaders)
         }
       }
 
@@ -147,6 +152,12 @@ defmodule Rolodex.Processors.SwaggerTest do
                          "schema" => %{
                            "$ref" => "#/components/schemas/User"
                          }
+                       }
+                     },
+                     "headers" => %{
+                       "limited" => %{
+                         "description" => "Have you been rate limited",
+                         "schema" => %{"type" => "boolean"}
                        }
                      },
                      "description" => "A single user entity response"
@@ -312,10 +323,10 @@ defmodule Rolodex.Processors.SwaggerTest do
                      %{
                        in: :path,
                        name: :account_id,
+                       description: "The account id",
                        schema: %{
                          type: :string,
-                         format: :uuid,
-                         description: "The account id"
+                         format: :uuid
                        }
                      },
                      %{
@@ -435,6 +446,9 @@ defmodule Rolodex.Processors.SwaggerTest do
         },
         schemas: %{
           User => Schema.to_map(User)
+        },
+        headers: %{
+          RateLimitHeaders => Headers.to_map(RateLimitHeaders)
         }
       }
 
@@ -460,6 +474,12 @@ defmodule Rolodex.Processors.SwaggerTest do
                        schema: %{
                          "$ref" => "#/components/schemas/User"
                        }
+                     }
+                   },
+                   headers: %{
+                     "limited" => %{
+                       description: "Have you been rate limited",
+                       schema: %{type: :boolean}
                      }
                    },
                    description: "A single user entity response"

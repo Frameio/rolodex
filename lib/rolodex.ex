@@ -18,10 +18,12 @@ defmodule Rolodex do
 
   ## Features and resources
 
-  - **Reusable schemas** - See `Rolodex.Schema` for details on how define reusable
+  - **Reusable components** - See `Rolodex.Schema` for details on how define reusable
   parameter schemas. See `Rolodex.RequestBody` for details on how to use schemas
   in your API request body definitions. See `Rolodex.Response` for details on
-  how to use schemas in your API response definitions.
+  how to use schemas in your API response definitions. See `Rolodex.Headers` for
+  details on how to define reusable headers for your route doc annotations and your
+  responses.
   - **Structured annotations** - See `Rolodex.Route` for details on how to format
   annotations on your API route action functions for the Rolodex parser to handle
   - **Generic serialization** - The `Rolodex.Processor` behaviour encapsulates
@@ -50,7 +52,7 @@ defmodule Rolodex do
       defmodule MyController do
         @doc [
           auth: :BearerAuth,
-          headers: ["X-Request-ID": uuid],
+          headers: ["X-Request-ID": uuid, required: true],
           query_params: [include: :string],
           path_params: [user_id: :uuid],
           body: MyRequestBody,
@@ -76,12 +78,23 @@ defmodule Rolodex do
         end
       end
 
+      # Some shared headers for your response
+      defmodule RateLimitHeaders do
+        use Rolodex.Headers
+
+        headers "RateLimitHeaders" do
+          header "X-Rate-Limited", :boolean, desc: "Have you been rate limited"
+          header "X-Rate-Limit-Duration", :integer
+        end
+      end
+
       # Your response
       defmodule MyResponse do
         use Rolodex.Response
 
         response "MyResponse" do
           desc "A response"
+          headers RateLimitHeaders
 
           content "application/json" do
             schema MySchema
@@ -156,6 +169,7 @@ defmodule Rolodex do
                 %{
                   "in" => "header",
                   "name" => "X-Request-ID",
+                  "required" => true,
                   "schema" => %{
                     "type" => "string",
                     "format" => "uuid"
@@ -211,6 +225,19 @@ defmodule Rolodex do
           "responses" => %{
             "MyResponse" => %{
               "description" => "A response",
+              "headers" => %{
+                "X-Rate-Limited" => %{
+                  "description" => "Have you been rate limited",
+                  "schema" => %{
+                    "type" => "string"
+                  }
+                },
+                "X-Rate-Limit-Duration" => %{
+                  "schema" => %{
+                    "type" => "integer"
+                  }
+                }
+              },
               "content" => %{
                 "application/json" => %{
                   "schema" => %{
@@ -246,13 +273,15 @@ defmodule Rolodex do
   alias Rolodex.{
     Config,
     Field,
+    Headers,
     RequestBody,
     Response,
     Route,
     Schema
   }
 
-  @route_fields_with_refs [:body, :headers, :path_params, :query_params, :responses]
+  @route_fields_with_refs [:body, :headers, :responses]
+  @ref_types [:headers, :request_body, :response, :schema]
 
   @doc """
   Runs Rolodex and writes out documentation to the specified destination
@@ -302,14 +331,14 @@ defmodule Rolodex do
   @doc """
   Inspects the request and response parameter data for each `Rolodex.Route`.
   From these routes, it collects a unique list of `Rolodex.RequestBody`,
-  `Rolodex.Response`, and `Rolodex.Schema` references. The serialized refs will
-  be passed along to a `Rolodex.Processor` behaviour.
+  `Rolodex.Response`, `Rolodex.Headers`, and `Rolodex.Schema` references. The
+  serialized refs will be passed along to a `Rolodex.Processor` behaviour.
   """
   @spec generate_refs([Rolodex.Route.t()]) :: map()
   def generate_refs(routes) do
     Enum.reduce(
       routes,
-      %{schemas: %{}, responses: %{}, request_bodies: %{}},
+      %{schemas: %{}, responses: %{}, request_bodies: %{}, headers: %{}},
       &refs_for_route/2
     )
   end
@@ -326,6 +355,9 @@ defmodule Rolodex do
 
       {:request_body, ref}, %{request_bodies: request_bodies} = acc ->
         %{acc | request_bodies: Map.put(request_bodies, ref, RequestBody.to_map(ref))}
+
+      {:headers, ref}, %{headers: headers} = acc ->
+        %{acc | headers: Map.put(headers, ref, Headers.to_map(ref))}
     end)
   end
 
@@ -351,6 +383,8 @@ defmodule Rolodex do
     |> Enum.reduce(result, &collect_ref(&1, &2, serialized_refs))
   end
 
+  # Shared schemas, responses, and request bodies can each have nested refs within,
+  # so we recursively collect those. Headers shouldn't have nested refs.
   defp collect_unserialized_refs(ref, result, serialized_refs) when is_atom(ref) do
     case Field.get_ref_type(ref) do
       :schema ->
@@ -368,6 +402,9 @@ defmodule Rolodex do
         |> RequestBody.get_refs()
         |> Enum.reduce(result, &collect_ref(&1, &2, serialized_refs))
 
+      :headers ->
+        result
+
       :error ->
         result
     end
@@ -384,7 +421,7 @@ defmodule Rolodex do
       {ref_type, ref} in (Enum.to_list(result) ++ serialized_refs) ->
         result
 
-      ref_type in [:schema, :response, :request_body] ->
+      ref_type in @ref_types ->
         result = MapSet.put(result, {ref_type, ref})
         collect_unserialized_refs(ref, result, serialized_refs)
 
@@ -396,23 +433,15 @@ defmodule Rolodex do
   defp serialized_refs_list(%{
          schemas: schemas,
          responses: responses,
-         request_bodies: request_bodies
+         request_bodies: bodies,
+         headers: headers
        }) do
-    serialized_schema_refs =
-      schemas
+    [schema: schemas, response: responses, request_body: bodies, headers: headers]
+    |> Enum.reduce([], fn {ref_type, refs}, acc ->
+      refs
       |> Map.keys()
-      |> Enum.map(&{:schema, &1})
-
-    serialized_response_refs =
-      responses
-      |> Map.keys()
-      |> Enum.map(&{:response, &1})
-
-    serialized_request_body_refs =
-      request_bodies
-      |> Map.keys()
-      |> Enum.map(&{:request_body, &1})
-
-    serialized_schema_refs ++ serialized_response_refs ++ serialized_request_body_refs
+      |> Enum.map(&{ref_type, &1})
+      |> Enum.concat(acc)
+    end)
   end
 end

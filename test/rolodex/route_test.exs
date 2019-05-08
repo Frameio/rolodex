@@ -105,7 +105,12 @@ defmodule Rolodex.RouteTest do
                },
                desc: "It's a test!",
                headers: %{
-                 "X-Request-Id" => %{type: :uuid, required: true}
+                 "total" => %{type: :integer, desc: "Total entries to be retrieved"},
+                 "per-page" => %{
+                   type: :integer,
+                   required: true,
+                   desc: "Total entries per page of results"
+                 }
                },
                body: %{type: :ref, ref: UserRequestBody},
                query_params: %{
@@ -153,7 +158,13 @@ defmodule Rolodex.RouteTest do
                },
                desc: "It's a test!",
                headers: %{
-                 "X-Request-Id" => %{type: :uuid, required: true}
+                 "X-Request-Id" => %{type: :uuid, required: true},
+                 "total" => %{type: :integer, desc: "Total entries to be retrieved"},
+                 "per-page" => %{
+                   type: :integer,
+                   required: true,
+                   desc: "Total entries per page of results"
+                 }
                },
                body: %{type: :ref, ref: UserRequestBody},
                query_params: %{

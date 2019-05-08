@@ -70,6 +70,39 @@ defmodule Rolodex.Response do
   end
 
   @doc """
+  Sets headers to be included in the response. You can use a shared headers ref
+  defined via `Rolodex.Headers`, or just pass in a bare map or keyword list.
+
+  ## Examples
+
+      # Shared headers module
+      defmodule MyResponse do
+        use Rolodex.Response
+
+        response "MyResponse" do
+          headers MyResponseHeaders
+        end
+      end
+
+      # Headers defined in place
+      defmodule MyResponse do
+        use Rolodex.Response
+
+        response "MyResponse" do
+          headers %{
+            "X-Pagination" => %{
+              type: :integer,
+              description: "Pagination information"
+            }
+          }
+        end
+      end
+  """
+  defmacro headers(metadata) do
+    ContentUtils.set_headers(metadata)
+  end
+
+  @doc """
   Defines a response shape for the given content type key
 
   **Accepts**
@@ -124,7 +157,7 @@ defmodule Rolodex.Response do
   end
 
   @doc """
-  Sets a schema of a collection type.
+  Sets a collection of schemas for the current response content type.
 
   ## Examples
 
@@ -186,6 +219,8 @@ defmodule Rolodex.Response do
       ...>   response "MyResponse" do
       ...>     desc "A demo response"
       ...>
+      ...>     headers %{"X-Rate-Limited" => :boolean}
+      ...>
       ...>     content "application/json" do
       ...>       schema MySimpleSchema
       ...>       example :response, %{id: "123"}
@@ -202,6 +237,9 @@ defmodule Rolodex.Response do
       iex> Rolodex.Response.to_map(MyResponse)
       %{
         desc: "A demo response",
+        headers: %{
+          "X-Rate-Limited" => %{type: :boolean}
+        },
         content: %{
           "application/json" => %{
             examples: %{
