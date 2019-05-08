@@ -18,6 +18,14 @@ defmodule Rolodex.Route do
       @doc "My route description"
       def route(_, _), do: nil
 
+  * **`id`** (Default: `""`)
+
+  Route identifier. Used as an optional unique identifier for the route.
+
+      @doc [
+        id: "foobar"
+      ]
+
   * **`body`** *(Default: `%{}`)
 
   Request body parameters. Valid inputs: `Rolodex.RequestBody`, or a map or
@@ -357,6 +365,7 @@ defmodule Rolodex.Route do
   defstruct [
     :path,
     :verb,
+    id: "",
     auth: %{},
     body: %{},
     desc: "",
@@ -372,6 +381,7 @@ defmodule Rolodex.Route do
   @phoenix_route_params [:path, :pipe_through, :verb]
 
   @type t :: %__MODULE__{
+          id: binary(),
           auth: map(),
           body: map(),
           desc: binary(),

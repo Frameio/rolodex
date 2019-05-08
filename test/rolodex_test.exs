@@ -257,6 +257,7 @@ defmodule RolodexTest do
                "paths" => %{
                  "/api/demo" => %{
                    "get" => %{
+                     "operationId" => "",
                      "security" => [
                        %{"JWTAuth" => []},
                        %{"OAuth" => ["user.read"]},
@@ -312,6 +313,7 @@ defmodule RolodexTest do
                  },
                  "/api/demo/{id}" => %{
                    "post" => %{
+                     "operationId" => "",
                      "security" => [%{"JWTAuth" => []}],
                      "parameters" => [
                        %{
@@ -327,6 +329,7 @@ defmodule RolodexTest do
                      "tags" => []
                    },
                    "put" => %{
+                     "operationId" => "",
                      "security" => [],
                      "parameters" => [],
                      "requestBody" => %{
@@ -367,6 +370,7 @@ defmodule RolodexTest do
                  },
                  "/api/multi" => %{
                    "get" => %{
+                     "operationId" => "",
                      "parameters" => [],
                      "responses" => %{
                        "200" => %{"$ref" => "#/components/responses/UserResponse"},
@@ -379,6 +383,7 @@ defmodule RolodexTest do
                  },
                  "/api/nested/{nested_id}/multi" => %{
                    "get" => %{
+                     "operationId" => "",
                      "parameters" => [
                        %{
                          "in" => "path",

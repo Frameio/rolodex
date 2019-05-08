@@ -68,6 +68,7 @@ defmodule Rolodex.Processors.Swagger do
       # whereas `description` is meant for multi-line markdown explainers.
       #
       # TODO(bceskavich): we could support both?
+      operationId: route.id,
       summary: route.desc,
       tags: route.tags,
       parameters: process_params(route),
