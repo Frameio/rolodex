@@ -2,9 +2,9 @@ defmodule Rolodex.Mocks.PaginationHeaders do
   use Rolodex.Headers
 
   headers "PaginationHeaders" do
-    header("total", :integer, desc: "Total entries to be retrieved")
+    field("total", :integer, desc: "Total entries to be retrieved")
 
-    header("per-page", :integer,
+    field("per-page", :integer,
       desc: "Total entries per page of results",
       required: true
     )
@@ -15,6 +15,6 @@ defmodule Rolodex.Mocks.RateLimitHeaders do
   use Rolodex.Headers
 
   headers "RateLimitHeaders" do
-    header("limited", :boolean, desc: "Have you been rate limited")
+    field("limited", :boolean, desc: "Have you been rate limited")
   end
 end

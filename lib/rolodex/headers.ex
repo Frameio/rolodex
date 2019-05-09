@@ -15,7 +15,7 @@ defmodule Rolodex.Headers do
   - `to_map/1` - serializes the headers module into a map
   """
 
-  alias Rolodex.Field
+  alias Rolodex.{ContentUtils, Field}
 
   defmacro __using__(_) do
     quote do
@@ -37,8 +37,8 @@ defmodule Rolodex.Headers do
         use Rolodex.Headers
 
         headers "SimpleHeaders" do
-          header "X-Rate-Limited", :boolean
-          header "X-Per-Page", :integer, desc: "Number of items in the response"
+          field "X-Rate-Limited", :boolean
+          field "X-Per-Page", :integer, desc: "Number of items in the response"
         end
       end
   """
@@ -63,10 +63,8 @@ defmodule Rolodex.Headers do
   - `opts` (optional) - additional metadata. See `Field.new/1` for a list of
   valid options.
   """
-  defmacro header(identifier, type, opts \\ []) do
-    quote do
-      @headers {unquote(identifier), [type: unquote(type)] ++ unquote(opts)}
-    end
+  defmacro field(identifier, type, opts \\ []) do
+    ContentUtils.set_field(:headers, identifier, type, opts)
   end
 
   @doc """
@@ -78,7 +76,7 @@ defmodule Rolodex.Headers do
       defmodule SimpleHeaders do
       ...>   use Rolodex.Headers
       ...>   headers "SimpleHeaders" do
-      ...>     header "X-Rate-Limited", :boolean
+      ...>     field "X-Rate-Limited", :boolean
       ...>   end
       ...> end
       iex>
@@ -111,8 +109,8 @@ defmodule Rolodex.Headers do
       ...>   use Rolodex.Headers
       ...>
       ...>   headers "SimpleHeaders" do
-      ...>     header "X-Rate-Limited", :boolean
-      ...>     header "X-Per-Page", :integer, desc: "Number of items in the response"
+      ...>     field "X-Rate-Limited", :boolean
+      ...>     field "X-Per-Page", :integer, desc: "Number of items in the response"
       ...>   end
       ...> end
       iex>

@@ -90,6 +90,16 @@ defmodule Rolodex.ContentUtils do
     end
   end
 
+  def set_field(attr, identifier, type, opts) do
+    quote do
+      Module.put_attribute(
+        __MODULE__,
+        unquote(attr),
+        {unquote(identifier), [type: unquote(type)] ++ unquote(opts)}
+      )
+    end
+  end
+
   def is_module_of_type?(mod, type) when is_atom(mod) do
     try do
       mod.__info__(:functions) |> Keyword.has_key?(type)
