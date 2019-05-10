@@ -16,7 +16,9 @@ defmodule RolodexTest do
     UserResponse,
     PaginatedUsersResponse,
     ErrorResponse,
-    UserRequestBody
+    UserRequestBody,
+    PaginationHeaders,
+    RateLimitHeaders
   }
 
   defmodule ConfigNoFilters do
@@ -125,6 +127,16 @@ defmodule RolodexTest do
                          }
                        }
                      },
+                     "headers" => %{
+                       "total" => %{
+                         "description" => "Total entries to be retrieved",
+                         "schema" => %{"type" => "integer"}
+                       },
+                       "per-page" => %{
+                         "description" => "Total entries per page of results",
+                         "schema" => %{"type" => "integer"}
+                       }
+                     },
                      "description" => "A paginated list of user entities"
                    },
                    "UserResponse" => %{
@@ -136,6 +148,12 @@ defmodule RolodexTest do
                          "schema" => %{
                            "$ref" => "#/components/schemas/User"
                          }
+                       }
+                     },
+                     "headers" => %{
+                       "limited" => %{
+                         "description" => "Have you been rate limited",
+                         "schema" => %{"type" => "boolean"}
                        }
                      },
                      "description" => "A single user entity response"
@@ -266,9 +284,16 @@ defmodule RolodexTest do
                      "parameters" => [
                        %{
                          "in" => "header",
-                         "name" => "X-Request-Id",
+                         "name" => "per-page",
                          "required" => true,
-                         "schema" => %{"format" => "uuid", "type" => "string"}
+                         "description" => "Total entries per page of results",
+                         "schema" => %{"type" => "integer"}
+                       },
+                       %{
+                         "in" => "header",
+                         "name" => "total",
+                         "description" => "Total entries to be retrieved",
+                         "schema" => %{"type" => "integer"}
                        },
                        %{
                          "in" => "path",
@@ -331,7 +356,14 @@ defmodule RolodexTest do
                    "put" => %{
                      "operationId" => "",
                      "security" => [],
-                     "parameters" => [],
+                     "parameters" => [
+                       %{
+                         "in" => "header",
+                         "name" => "X-Request-Id",
+                         "required" => true,
+                         "schema" => %{"format" => "uuid", "type" => "string"}
+                       }
+                     ],
                      "requestBody" => %{
                        "content" => %{
                          "application/json" => %{
@@ -422,7 +454,12 @@ defmodule RolodexTest do
                body: %{type: :ref, ref: UserRequestBody},
                desc: "It's a test!",
                headers: %{
-                 "X-Request-Id" => %{type: :uuid, required: true}
+                 "total" => %{type: :integer, desc: "Total entries to be retrieved"},
+                 "per-page" => %{
+                   type: :integer,
+                   required: true,
+                   desc: "Total entries per page of results"
+                 }
                },
                metadata: %{public: true},
                path: "/api/demo",
@@ -476,29 +513,26 @@ defmodule RolodexTest do
         %Route{
           headers: %{"X-Request-Id" => %{type: :uuid}},
           body: %{type: :ref, ref: UserRequestBody},
-          query_params: %{id: %{type: :uuid}},
-          path_params: %{nested: %{type: :ref, ref: NotFound}},
           responses: %{
             200 => %{type: :ref, ref: UserResponse}
           }
         },
         %Route{
-          headers: %{comment: %{type: :ref, ref: Comment}},
+          headers: %{type: :ref, ref: PaginationHeaders},
           body: %{type: :ref, ref: Parent},
-          query_params: %{nested: %{type: :ref, ref: NotFound}},
-          path_params: %{id: %{type: :uuid}},
           responses: %{
             200 => %{type: :ref, ref: UserResponse}
           }
         }
       ]
 
-      %{responses: responses, request_bodies: request_bodies, schemas: schemas} =
+      %{responses: responses, request_bodies: request_bodies, schemas: schemas, headers: headers} =
         Rolodex.generate_refs(routes)
 
       assert Map.keys(responses) == [UserResponse]
       assert Map.keys(request_bodies) == [UserRequestBody]
       assert Map.keys(schemas) == [Comment, NotFound, Parent, User]
+      assert Map.keys(headers) == [PaginationHeaders, RateLimitHeaders]
     end
 
     test "Ignores data that contains no Rolodex.Schema references" do
@@ -515,10 +549,11 @@ defmodule RolodexTest do
         }
       ]
 
-      %{responses: responses, request_bodies: request_bodies, schemas: schemas} =
+      %{responses: responses, request_bodies: request_bodies, schemas: schemas, headers: headers} =
         Rolodex.generate_refs(routes)
 
       assert Map.keys(request_bodies) == []
+      assert Map.keys(headers) == [RateLimitHeaders]
       assert Map.keys(responses) == [UserResponse]
 
       assert Map.keys(schemas) == [

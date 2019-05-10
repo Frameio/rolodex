@@ -16,7 +16,7 @@ defmodule Rolodex.Schema do
   - `get_refs/1` - traverses a schema and searches for any nested schemas within
   """
 
-  alias Rolodex.Field
+  alias Rolodex.{ContentUtils, Field}
 
   defmacro __using__(_opts) do
     quote do
@@ -105,9 +105,7 @@ defmodule Rolodex.Schema do
       end
   """
   defmacro field(identifier, type, opts \\ []) do
-    quote do
-      @fields {unquote(identifier), [type: unquote(type)] ++ unquote(opts)}
-    end
+    ContentUtils.set_field(:fields, identifier, type, opts)
   end
 
   @doc """

@@ -9,9 +9,10 @@ defmodule Rolodex.Field do
   Response, or Schema.
   """
 
-  alias Rolodex.{RequestBody, Response, Schema}
+  alias Rolodex.{Headers, RequestBody, Response, Schema}
 
-  @type ref_type :: :request_body | :response | :schema
+  @type ref_type :: :headers | :request_body | :response | :schema
+  @ref_types [:headers, :request_body, :response, :schema]
 
   @doc """
   Parses parameter data into maps with a standardized shape.
@@ -163,11 +164,8 @@ defmodule Rolodex.Field do
 
   defp create_field(%{type: type} = metadata) do
     cond do
-      get_ref_type(type) in [:request_body, :response, :schema] ->
-        %{type: :ref, ref: type}
-
-      true ->
-        metadata
+      get_ref_type(type) in @ref_types -> %{type: :ref, ref: type}
+      true -> metadata
     end
   end
 
@@ -257,7 +255,8 @@ defmodule Rolodex.Field do
   end
 
   @doc """
-  Takes a module and determines if it is a Response, a Schema, or neither
+  Takes a module and determines if it is a known shared module ref type: Headers,
+  RequestBody, Response, or Schema.
   """
   @spec get_ref_type(module()) :: ref_type() | :error
   def get_ref_type(mod) do
@@ -265,6 +264,7 @@ defmodule Rolodex.Field do
       RequestBody.is_request_body_module?(mod) -> :request_body
       Response.is_response_module?(mod) -> :response
       Schema.is_schema_module?(mod) -> :schema
+      Headers.is_headers_module?(mod) -> :headers
       true -> :error
     end
   end
