@@ -1,9 +1,10 @@
 defmodule Rolodex.Mocks.UserResponse do
   use Rolodex.Response
-  alias Rolodex.Mocks.User
+  alias Rolodex.Mocks.{User, RateLimitHeaders}
 
   response "UserResponse" do
     desc("A single user entity response")
+    headers(RateLimitHeaders)
 
     content "application/json" do
       schema(User)
@@ -14,10 +15,12 @@ end
 
 defmodule Rolodex.Mocks.UsersResponse do
   use Rolodex.Response
-  alias Rolodex.Mocks.User
+
+  alias Rolodex.Mocks.{PaginationHeaders, User}
 
   response "UsersResponse" do
     desc("A list of user entities")
+    headers(PaginationHeaders)
 
     content "application/json" do
       schema([User])
@@ -33,6 +36,11 @@ defmodule Rolodex.Mocks.ParentsResponse do
   response "ParentsResponse" do
     desc("A list of parent entities")
 
+    headers(%{
+      "total" => :integer,
+      "per-page" => %{type: :integer, required: true}
+    })
+
     content "application/json" do
       schema(:list, of: [Parent])
     end
@@ -41,10 +49,11 @@ end
 
 defmodule Rolodex.Mocks.PaginatedUsersResponse do
   use Rolodex.Response
-  alias Rolodex.Mocks.User
+  alias Rolodex.Mocks.{PaginationHeaders, User}
 
   response "PaginatedUsersResponse" do
     desc("A paginated list of user entities")
+    headers(PaginationHeaders)
 
     content "application/json" do
       schema(%{
@@ -75,9 +84,11 @@ end
 
 defmodule Rolodex.Mocks.MultiResponse do
   use Rolodex.Response
-  alias Rolodex.Mocks.{Comment, User}
+  alias Rolodex.Mocks.{Comment, PaginationHeaders, User}
 
   response "MultiResponse" do
+    headers(PaginationHeaders)
+
     content "application/json" do
       schema(User)
     end

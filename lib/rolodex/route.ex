@@ -18,6 +18,14 @@ defmodule Rolodex.Route do
       @doc "My route description"
       def route(_, _), do: nil
 
+  * **`id`** (Default: `""`)
+
+  Route identifier. Used as an optional unique identifier for the route.
+
+      @doc [
+        id: "foobar"
+      ]
+
   * **`body`** *(Default: `%{}`)
 
   Request body parameters. Valid inputs: `Rolodex.RequestBody`, or a map or
@@ -84,14 +92,18 @@ defmodule Rolodex.Route do
 
   * **`headers`** (Default: `%{}`)
 
-  Request headers. Valid input is a map or keyword list, where each key is a
-  header name and each value is a description of the value in the form of a
-  `Rolodex.Schema`, an atom, a map, or a list.
+  Request headers. Valid inputs: a module that has defined shared heads via
+  `Rolodex.Headers`, or a map or keyword list, where each key is a header name
+  and each value is a description of the value in the form of a an atom, a map,
+  or a list.
 
   Each header value can also specify the following: `minimum` (default: `nil`),
   `maximum` (default: `nil`), default (default: `nil`), and required (default: `required`).
 
       @doc [
+        # Shared headers
+        headers: MySharedRequestHeaders
+
         # Simplest header description: a name with a concrete type
         headers: %{"X-Request-ID" => :uuid},
         headers: ["X-Request-ID": :uuid],
@@ -116,14 +128,13 @@ defmodule Rolodex.Route do
           ]
         ],
 
-        # Multiple header values. Maybe some of the have nested attributes too
+        # Multiple header values
         headers: [
           "X-Request-ID": :uuid,
           "Custom-Data": [
             id: :uuid,
             checksum: :string
-          ],
-          "Header-Via-Schema": MyHeaderSchema
+          ]
         ]
       ]
 
@@ -131,7 +142,7 @@ defmodule Rolodex.Route do
 
   Parameters in the route path. Valid input is a map or keyword list, where each
   key is a path parameter name and each value is a description of the value in
-  the form of a `Rolodex.Schema`, an atom, a map, or a list.
+  the form of an atom, a map, or a list.
 
   Each parameter value can also specify the following: `minimum` (default:
   `nil`), `maximum` (default: `nil`), default (default: `nil`), and required
@@ -167,7 +178,7 @@ defmodule Rolodex.Route do
 
   Query parameters. Valid input is a map or keyword list, where each key is a
   query parameter name and each value is a description of the value in the form
-  of a `Rolodex.Schema`, an atom, a map, or a list.
+  of an atom, a map, or a list.
 
   Each query value can also specify the following: `minimum` (default: `nil`),
   `maximum` (default: `nil`), default (default: `nil`), and required (default:
@@ -198,14 +209,13 @@ defmodule Rolodex.Route do
           ]
         ],
 
-        # Multiple query values. Maybe some of the have nested attributes too
+        # Multiple query values
         query_params: [
           id: :uuid,
           some_object: [
             id: :uuid,
             checksum: :string
-          ],
-          via_schema: QueryParamSchema
+          ]
         ]
       ]
 
@@ -348,6 +358,7 @@ defmodule Rolodex.Route do
 
   alias Rolodex.{
     Config,
+    Headers,
     PipelineConfig,
     Field
   }
@@ -357,6 +368,7 @@ defmodule Rolodex.Route do
   defstruct [
     :path,
     :verb,
+    id: "",
     auth: %{},
     body: %{},
     desc: "",
@@ -372,6 +384,7 @@ defmodule Rolodex.Route do
   @phoenix_route_params [:path, :pipe_through, :verb]
 
   @type t :: %__MODULE__{
+          id: binary(),
           auth: map(),
           body: map(),
           desc: binary(),
@@ -508,13 +521,19 @@ defmodule Rolodex.Route do
   defp parse_params(metadata) do
     [:headers, :path_params, :query_params, :responses]
     |> Enum.reduce(metadata, fn key, acc ->
-      fields =
-        acc
-        |> Map.get(key, %{})
-        |> Map.new(fn {k, v} -> {k, Field.new(v)} end)
-
-      Map.put(acc, key, fields)
+      Map.update(acc, key, %{}, &parse_param/1)
     end)
+  end
+
+  defp parse_param(param) when is_atom(param) do
+    case Headers.is_headers_module?(param) do
+      true -> Headers.to_map(param)
+      false -> Field.new(param)
+    end
+  end
+
+  defp parse_param(param) do
+    Map.new(param, fn {k, v} -> {k, Field.new(v)} end)
   end
 
   defp parse_auth(metadata) do

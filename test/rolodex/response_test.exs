@@ -11,7 +11,8 @@ defmodule Rolodex.ResponseTest do
     MultiResponse,
     User,
     Comment,
-    Parent
+    Parent,
+    PaginationHeaders
   }
 
   doctest Response
@@ -30,6 +31,22 @@ defmodule Rolodex.ResponseTest do
 
     test "Description is not required" do
       assert MultiResponse.__response__(:desc) == nil
+    end
+  end
+
+  describe "#set_headers/1 macro" do
+    test "It handles a shared headers module" do
+      assert UsersResponse.__response__(:headers) == %{
+               type: :ref,
+               ref: PaginationHeaders
+             }
+    end
+
+    test "It handles a bare map or kwl" do
+      assert ParentsResponse.__response__(:headers) == %{
+               "total" => %{type: :integer},
+               "per-page" => %{type: :integer, required: true}
+             }
     end
   end
 
@@ -95,6 +112,10 @@ defmodule Rolodex.ResponseTest do
     test "It serializes the response as expected" do
       assert Response.to_map(PaginatedUsersResponse) == %{
                desc: "A paginated list of user entities",
+               headers: %{
+                 type: :ref,
+                 ref: PaginationHeaders
+               },
                content: %{
                  "application/json" => %{
                    schema: %{
@@ -119,7 +140,7 @@ defmodule Rolodex.ResponseTest do
 
   describe "#get_refs/1" do
     test "It gets refs within a response module" do
-      assert Response.get_refs(MultiResponse) == [Comment, User]
+      assert Response.get_refs(MultiResponse) == [Comment, PaginationHeaders, User]
     end
   end
 end

@@ -11,7 +11,7 @@ defmodule Rolodex.Processors.Swagger do
     :type
   ]
 
-  alias Rolodex.{Config, Field, Route}
+  alias Rolodex.{Config, Field, Headers, Route}
 
   import Rolodex.Utils, only: [camelize_map: 1]
 
@@ -68,6 +68,7 @@ defmodule Rolodex.Processors.Swagger do
       # whereas `description` is meant for multi-line markdown explainers.
       #
       # TODO(bceskavich): we could support both?
+      operationId: route.id,
       summary: route.desc,
       tags: route.tags,
       parameters: process_params(route),
@@ -82,24 +83,24 @@ defmodule Rolodex.Processors.Swagger do
   end
 
   defp process_params(%Route{headers: headers, path_params: path, query_params: query}) do
-    [{:header, headers}, {:path, path}, {:query, query}]
+    [header: headers, path: path, query: query]
     |> Enum.flat_map(fn {location, params} ->
       Enum.map(params, &process_param(&1, location))
     end)
   end
 
   defp process_param({name, param}, location) do
-    result = %{
+    %{
       in: location,
       name: name,
       schema: process_schema_field(param)
     }
-
-    case Map.get(param, :required, false) do
-      true -> Map.put(result, :required, true)
-      false -> result
-    end
+    |> set_param_required(param)
+    |> set_param_description()
   end
+
+  defp set_param_required(param, %{required: true}), do: Map.put(param, :required, true)
+  defp set_param_required(param, _), do: param
 
   defp process_auth(%Route{auth: auth}), do: Enum.map(auth, &Map.new([&1]))
 
@@ -139,7 +140,11 @@ defmodule Rolodex.Processors.Swagger do
 
   @impl Rolodex.Processor
   def process_refs(
-        %{request_bodies: request_bodies, responses: responses, schemas: schemas},
+        %{
+          request_bodies: request_bodies,
+          responses: responses,
+          schemas: schemas
+        },
         %Config{auth: auth}
       ) do
     %{
@@ -158,7 +163,7 @@ defmodule Rolodex.Processors.Swagger do
     end)
   end
 
-  defp process_content_body_ref(%{desc: desc, content: content}) do
+  defp process_content_body_ref(%{desc: desc, content: content} = rest) do
     %{
       description: desc,
       content:
@@ -167,6 +172,7 @@ defmodule Rolodex.Processors.Swagger do
           {content_type, process_content_body_ref_data(content_val)}
         end)
     }
+    |> process_content_body_headers(rest)
   end
 
   defp process_content_body_ref_data(%{schema: schema, examples: examples}) do
@@ -178,6 +184,31 @@ defmodule Rolodex.Processors.Swagger do
 
   defp process_content_body_examples(examples),
     do: Map.new(examples, fn {name, example} -> {name, %{value: example}} end)
+
+  defp process_content_body_headers(content, %{headers: nil}), do: content
+
+  # OpenAPI 3 does not support using `$ref` syntax for reusable header components,
+  # so we need to serialize them out in full each time.
+  defp process_content_body_headers(content, %{headers: %{type: :ref, ref: ref}}) do
+    headers =
+      ref
+      |> Headers.to_map()
+      |> process_header_fields()
+
+    Map.put(content, :headers, headers)
+  end
+
+  defp process_content_body_headers(content, %{headers: headers}),
+    do: Map.put(content, :headers, process_header_fields(headers))
+
+  defp process_header_fields(fields) do
+    Map.new(fields, fn {header, value} -> {header, process_header_field(value)} end)
+  end
+
+  defp process_header_field(value) do
+    %{schema: process_schema_field(value)}
+    |> set_param_description()
+  end
 
   defp process_schema_refs(schemas) do
     Map.new(schemas, fn {mod, schema} ->
@@ -252,6 +283,16 @@ defmodule Rolodex.Processors.Swagger do
   end
 
   defp put_description(field, _), do: field
+
+  # When serializing parameters, descriptions should be placed in the top-level
+  # parameters map, not the nested schema definition
+  defp set_param_description(%{schema: %{description: description} = schema} = param) do
+    param
+    |> Map.put(:description, description)
+    |> Map.put(:schema, Map.delete(schema, :description))
+  end
+
+  defp set_param_description(param), do: param
 
   defp ref_path(mod) do
     case Field.get_ref_type(mod) do
