@@ -203,7 +203,7 @@ defmodule Rolodex.RequestBody do
       iex> Rolodex.RequestBody.to_map(MyRequestBody)
       %{
         desc: "A demo request body",
-        headers: nil,
+        headers: [],
         content: %{
           "application/json" => %{
             examples: %{
