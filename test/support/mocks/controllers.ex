@@ -2,6 +2,7 @@ defmodule Rolodex.Mocks.TestController do
   alias Rolodex.Mocks.{
     UserRequestBody,
     UserResponse,
+    MultiResponse,
     PaginatedUsersResponse,
     PaginationHeaders,
     ErrorResponse
@@ -45,6 +46,7 @@ defmodule Rolodex.Mocks.TestController do
       auth: :JWTAuth,
       responses: %{
         200 => UserResponse,
+        201 => MultiResponse,
         404 => ErrorResponse
       }
     ],

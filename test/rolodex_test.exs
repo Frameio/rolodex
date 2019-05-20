@@ -106,6 +106,40 @@ defmodule RolodexTest do
                      },
                      "description" => "An error response"
                    },
+                   "MultiResponse" => %{
+                     "description" => nil,
+                     "headers" => %{
+                       "total" => %{
+                         "description" => "Total entries to be retrieved",
+                         "schema" => %{"type" => "integer"}
+                       },
+                       "per-page" => %{
+                         "description" => "Total entries per page of results",
+                         "schema" => %{"type" => "integer"}
+                       },
+                       "limited" => %{
+                         "description" => "Have you been rate limited",
+                         "schema" => %{"type" => "boolean"}
+                       }
+                     },
+                     "content" => %{
+                       "application/json" => %{
+                         "examples" => %{},
+                         "schema" => %{
+                           "$ref" => "#/components/schemas/User"
+                         }
+                       },
+                       "application/lolsob" => %{
+                         "examples" => %{},
+                         "schema" => %{
+                           "type" => "array",
+                           "items" => %{
+                             "$ref" => "#/components/schemas/Comment"
+                           }
+                         }
+                       }
+                     }
+                   },
                    "PaginatedUsersResponse" => %{
                      "content" => %{
                        "application/json" => %{
@@ -406,6 +440,7 @@ defmodule RolodexTest do
                      "parameters" => [],
                      "responses" => %{
                        "200" => %{"$ref" => "#/components/responses/UserResponse"},
+                       "201" => %{"$ref" => "#/components/responses/MultiResponse"},
                        "404" => %{"$ref" => "#/components/responses/ErrorResponse"}
                      },
                      "security" => [%{"JWTAuth" => []}],

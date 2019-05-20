@@ -8,10 +8,9 @@ defmodule Rolodex.ContentUtils do
       Module.register_attribute(__MODULE__, :content_types, accumulate: true)
       Module.register_attribute(__MODULE__, :current_content_type, accumulate: false)
       Module.register_attribute(__MODULE__, :body_description, accumulate: false)
-      Module.register_attribute(__MODULE__, :headers, accumulate: false)
+      Module.register_attribute(__MODULE__, :headers, accumulate: true)
 
       @body_description nil
-      @headers nil
 
       unquote(block)
 
@@ -19,7 +18,7 @@ defmodule Rolodex.ContentUtils do
 
       def unquote(type)(:name), do: unquote(name)
       def unquote(type)(:desc), do: @body_description
-      def unquote(type)(:headers), do: @headers
+      def unquote(type)(:headers), do: @headers |> Enum.reverse()
       def unquote(type)(:content_types), do: @content_types |> Enum.reverse()
     end
   end
@@ -149,8 +148,13 @@ defmodule Rolodex.ContentUtils do
     |> set_content_refs(data)
   end
 
-  defp set_headers_ref(refs, %{headers: %{type: :ref, ref: ref}}), do: MapSet.put(refs, ref)
-  defp set_headers_ref(refs, _), do: refs
+  defp set_headers_ref(refs, %{headers: []}), do: refs
+
+  defp set_headers_ref(refs, %{headers: headers}),
+    do: Enum.reduce(headers, refs, &collect_headers_refs/2)
+
+  defp collect_headers_refs(%{type: :ref, ref: ref}, refs), do: MapSet.put(refs, ref)
+  defp collect_headers_refs(_, refs), do: refs
 
   defp set_content_refs(refs, %{content: content}) do
     Enum.reduce(content, refs, fn {_, %{schema: schema}}, acc ->

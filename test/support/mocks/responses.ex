@@ -84,10 +84,17 @@ end
 
 defmodule Rolodex.Mocks.MultiResponse do
   use Rolodex.Response
-  alias Rolodex.Mocks.{Comment, PaginationHeaders, User}
+
+  alias Rolodex.Mocks.{
+    Comment,
+    PaginationHeaders,
+    RateLimitHeaders,
+    User
+  }
 
   response "MultiResponse" do
     headers(PaginationHeaders)
+    headers(RateLimitHeaders)
 
     content "application/json" do
       schema(User)
