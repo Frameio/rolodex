@@ -11,7 +11,7 @@ defmodule Rolodex.Writer do
   @doc """
   Returns an open `IO.device()` for writing.
   """
-  @callback init(Rolodex.Config.t()) :: {:ok, IO.device()} | {:error, any}
+  @callback init(list() | map()) :: {:ok, IO.device()} | {:error, any}
 
   @doc """
   Closes the given `IO.device()`.
