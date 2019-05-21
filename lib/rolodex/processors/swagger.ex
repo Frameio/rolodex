@@ -185,21 +185,24 @@ defmodule Rolodex.Processors.Swagger do
   defp process_content_body_examples(examples),
     do: Map.new(examples, fn {name, example} -> {name, %{value: example}} end)
 
-  defp process_content_body_headers(content, %{headers: nil}), do: content
+  defp process_content_body_headers(content, %{headers: []}), do: content
+
+  defp process_content_body_headers(content, %{headers: headers}),
+    do: Map.put(content, :headers, Enum.reduce(headers, %{}, &serialize_headers_group/2))
 
   # OpenAPI 3 does not support using `$ref` syntax for reusable header components,
   # so we need to serialize them out in full each time.
-  defp process_content_body_headers(content, %{headers: %{type: :ref, ref: ref}}) do
+  defp serialize_headers_group(%{type: :ref, ref: ref}, serialized) do
     headers =
       ref
       |> Headers.to_map()
       |> process_header_fields()
 
-    Map.put(content, :headers, headers)
+    Map.merge(serialized, headers)
   end
 
-  defp process_content_body_headers(content, %{headers: headers}),
-    do: Map.put(content, :headers, process_header_fields(headers))
+  defp serialize_headers_group(headers, serialized),
+    do: Map.merge(serialized, process_header_fields(headers))
 
   defp process_header_fields(fields) do
     Map.new(fields, fn {header, value} -> {header, process_header_field(value)} end)

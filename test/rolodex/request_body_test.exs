@@ -97,7 +97,7 @@ defmodule Rolodex.RequestBodyTest do
     test "It serializes the request body as expected" do
       assert RequestBody.to_map(PaginatedUsersRequestBody) == %{
                desc: "A paginated list of user entities",
-               headers: nil,
+               headers: [],
                content: %{
                  "application/json" => %{
                    schema: %{

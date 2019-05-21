@@ -71,7 +71,9 @@ defmodule Rolodex.Response do
 
   @doc """
   Sets headers to be included in the response. You can use a shared headers ref
-  defined via `Rolodex.Headers`, or just pass in a bare map or keyword list.
+  defined via `Rolodex.Headers`, or just pass in a bare map or keyword list. If
+  the macro is called multiple times, all headers passed in will be merged together
+  in the docs result.
 
   ## Examples
 
@@ -81,6 +83,7 @@ defmodule Rolodex.Response do
 
         response "MyResponse" do
           headers MyResponseHeaders
+          headers MyAdditionalResponseHeaders
         end
       end
 
@@ -237,9 +240,9 @@ defmodule Rolodex.Response do
       iex> Rolodex.Response.to_map(MyResponse)
       %{
         desc: "A demo response",
-        headers: %{
-          "X-Rate-Limited" => %{type: :boolean}
-        },
+        headers: [
+          %{"X-Rate-Limited" => %{type: :boolean}}
+        ],
         content: %{
           "application/json" => %{
             examples: %{
