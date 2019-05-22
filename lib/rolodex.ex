@@ -274,6 +274,7 @@ defmodule Rolodex do
     Config,
     Field,
     Headers,
+    RenderGroupConfig,
     RequestBody,
     Response,
     Route,
@@ -288,54 +289,48 @@ defmodule Rolodex do
   """
   @spec run(Rolodex.Config.t()) :: :ok | {:error, any()}
   def run(config) do
-    generate_documentation(config)
-    |> write(config)
+    config
+    |> generate_routes()
+    |> process_render_groups(config)
   end
 
-  defp write(processed, %Config{writer: writer} = config) do
-    with {:ok, device} <- writer.init(config),
+  defp generate_routes(%Config{router: router} = config) do
+    router.__routes__()
+    |> Enum.map(&Route.new(&1, config))
+  end
+
+  defp process_render_groups(routes, %Config{render_groups: groups} = config) do
+    Enum.map(groups, &process_render_group(routes, config, &1))
+  end
+
+  defp process_render_group(routes, config, %RenderGroupConfig{processor: processor} = group) do
+    routes = filter_routes(routes, group)
+    refs = generate_refs(routes)
+
+    config
+    |> processor.process(routes, refs)
+    |> write(group)
+  end
+
+  defp filter_routes(routes, %RenderGroupConfig{filters: filters}) do
+    Enum.reject(routes, &(&1 == nil || Route.matches_filter?(&1, filters)))
+  end
+
+  defp write(processed, %RenderGroupConfig{writer: writer, writer_opts: opts}) do
+    with {:ok, device} <- writer.init(opts),
          :ok <- writer.write(device, processed),
          :ok <- writer.close(device) do
-      :ok
+      {:ok, processed}
     else
-      err ->
-        IO.puts("Failed to write docs with error:")
-        IO.inspect(err)
+      err -> {:error, err}
     end
   end
 
-  @doc """
-  Generates a list of route docs and a map of response schemas. Passes both into
-  the configured processor to generate the documentation JSON to be written to
-  file.
-  """
-  @spec generate_documentation(Rolodex.Config.t()) :: String.t()
-  def generate_documentation(%Config{processor: processor} = config) do
-    routes = generate_routes(config)
-    refs = generate_refs(routes)
-    processor.process(config, routes, refs)
-  end
-
-  @doc """
-  Inspects the Phoenix Router provided in your `Rolodex.Config`. Iterates
-  through the list of routes to generate a `Rolodex.Route` for each. It will
-  filter out any route(s) that match the filter(s) you provide in your config.
-  """
-  @spec generate_routes(Rolodex.Config.t()) :: [Rolodex.Route.t()]
-  def generate_routes(%Config{router: router} = config) do
-    router.__routes__()
-    |> Enum.map(&Route.new(&1, config))
-    |> Enum.reject(&(&1 == nil || Route.matches_filter?(&1, config)))
-  end
-
-  @doc """
-  Inspects the request and response parameter data for each `Rolodex.Route`.
-  From these routes, it collects a unique list of `Rolodex.RequestBody`,
-  `Rolodex.Response`, `Rolodex.Headers`, and `Rolodex.Schema` references. The
-  serialized refs will be passed along to a `Rolodex.Processor` behaviour.
-  """
-  @spec generate_refs([Rolodex.Route.t()]) :: map()
-  def generate_refs(routes) do
+  # Inspects the request and response parameter data for each `Rolodex.Route`.
+  # From these routes, it collects a unique list of `Rolodex.RequestBody`,
+  # `Rolodex.Response`, `Rolodex.Headers`, and `Rolodex.Schema` references. The
+  # serialized refs will be passed along to a `Rolodex.Processor` behaviour.
+  defp generate_refs(routes) do
     Enum.reduce(
       routes,
       %{schemas: %{}, responses: %{}, request_bodies: %{}, headers: %{}},
