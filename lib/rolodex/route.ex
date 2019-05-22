@@ -402,10 +402,10 @@ defmodule Rolodex.Route do
   @doc """
   Checks to see if the given route matches any filter(s) stored in `Rolodex.Config`.
   """
-  @spec matches_filter?(t(), Rolodex.Config.t()) :: boolean()
-  def matches_filter?(route, config)
+  @spec matches_filter?(t(), any()) :: boolean()
+  def matches_filter?(route, filters)
 
-  def matches_filter?(route, %Config{filters: filters}) when is_list(filters) do
+  def matches_filter?(route, filters) when is_list(filters) do
     Enum.any?(filters, fn
       filter_opts when is_map(filter_opts) ->
         keys = Map.keys(filter_opts)

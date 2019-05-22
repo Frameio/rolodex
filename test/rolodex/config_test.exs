@@ -1,7 +1,7 @@
 defmodule Rolodex.ConfigTest do
   use ExUnit.Case
 
-  alias Rolodex.{Config, PipelineConfig}
+  alias Rolodex.{Config, PipelineConfig, RenderGroupConfig}
 
   defmodule BasicConfig do
     use Rolodex.Config
@@ -25,6 +25,13 @@ defmodule Rolodex.ConfigTest do
         title: "BasicConfig",
         version: "0.0.1",
         router: MyRouter
+      ]
+    end
+
+    def render_groups_spec() do
+      [
+        [writer_opts: [file_name: "api-public.json"]],
+        [writer_opts: [file_name: "api-private.json"]]
       ]
     end
 
@@ -66,21 +73,18 @@ defmodule Rolodex.ConfigTest do
     test "It parses a basic config with no writer and pipeline overrides" do
       assert Config.new(BasicConfig) == %Config{
                description: "Hello world",
-               file_name: "api.json",
                locale: "en",
                pipelines: %{},
-               processor: Rolodex.Processors.Swagger,
                title: "BasicConfig",
                version: "0.0.1",
                router: MyRouter,
-               writer: Rolodex.Writers.FileWriter
+               render_groups: [%RenderGroupConfig{}]
              }
     end
 
     test "It parses a full config with writer and pipeline overrides" do
       assert Config.new(FullConfig) == %Config{
                description: "Hello world",
-               file_name: "api.json",
                locale: "en",
                pipelines: %{
                  api: PipelineConfig.new(headers: ["X-Request-ID": :uuid], auth: :JWTAuth)
@@ -106,11 +110,13 @@ defmodule Rolodex.ConfigTest do
                    }
                  }
                },
-               processor: Rolodex.Processors.Swagger,
                title: "BasicConfig",
                version: "0.0.1",
                router: MyRouter,
-               writer: Rolodex.Writers.FileWriter
+               render_groups: [
+                 %RenderGroupConfig{writer_opts: [file_name: "api-public.json"]},
+                 %RenderGroupConfig{writer_opts: [file_name: "api-private.json"]}
+               ]
              }
     end
   end

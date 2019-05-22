@@ -45,41 +45,36 @@ defmodule Rolodex.RouteTest do
         TestRouter.__routes__()
         |> Enum.map(&Route.new(&1, config))
 
-      assert routes |> Enum.at(0) |> Route.matches_filter?(config) == false
-      assert routes |> Enum.at(1) |> Route.matches_filter?(config) == false
+      refute routes |> Enum.at(0) |> Route.matches_filter?(:none)
+      refute routes |> Enum.at(1) |> Route.matches_filter?(:none)
     end
 
     test "Returns true when for a route that matches a filter map", %{config: config} do
-      config = %Config{config | filters: [%{path: "/api/demo", verb: :get}]}
-
       routes =
         TestRouter.__routes__()
         |> Enum.map(&Route.new(&1, config))
 
-      assert routes |> Enum.at(0) |> Route.matches_filter?(config) == true
-      assert routes |> Enum.at(1) |> Route.matches_filter?(config) == false
+      assert routes |> Enum.at(0) |> Route.matches_filter?([%{path: "/api/demo", verb: :get}])
+      refute routes |> Enum.at(1) |> Route.matches_filter?([%{path: "/api/demo", verb: :get}])
     end
 
     test "Returns true for a route that matches a filter function", %{config: config} do
-      config = %Config{
-        config
-        | filters: [
-            fn
-              %Route{path: "/api/demo/:id", verb: :post} ->
-                true
+      filters = [
+        fn
+          %Route{path: "/api/demo/:id", verb: :post} ->
+            true
 
-              _ ->
-                false
-            end
-          ]
-      }
+          _ ->
+            false
+        end
+      ]
 
       routes =
         TestRouter.__routes__()
         |> Enum.map(&Route.new(&1, config))
 
-      assert routes |> Enum.at(0) |> Route.matches_filter?(config) == false
-      assert routes |> Enum.at(1) |> Route.matches_filter?(config) == true
+      refute routes |> Enum.at(0) |> Route.matches_filter?(filters)
+      assert routes |> Enum.at(1) |> Route.matches_filter?(filters)
     end
   end
 
