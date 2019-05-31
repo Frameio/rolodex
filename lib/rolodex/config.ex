@@ -50,7 +50,7 @@ defmodule Rolodex.Config do
   - `locale` (default: `"en"`) - Locale key to use when processing descriptions
   - `pipelines` (default: `%{}`) - Map of pipeline configs. Used to set default
   parameter values for all routes in a pipeline. See `Rolodex.PipelineConfig`.
-  - `render_groups` (default: `%Rolodex.RenderGroupConfig{}`) - List of render
+  - `render_groups` (default: `Rolodex.RenderGroupConfig`) - List of render
   groups.
   - `server_urls` (default: []) - List of base url(s) for your API paths
 
