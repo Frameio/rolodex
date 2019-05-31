@@ -1,4 +1,4 @@
-defmodule Rolodex.Processors.SwaggerTest do
+defmodule Rolodex.Processors.OpenAPITest do
   use ExUnit.Case
 
   alias Rolodex.{
@@ -10,7 +10,7 @@ defmodule Rolodex.Processors.SwaggerTest do
     Headers
   }
 
-  alias Rolodex.Processors.Swagger
+  alias Rolodex.Processors.OpenAPI
 
   alias Rolodex.Mocks.{
     ErrorResponse,
@@ -94,7 +94,7 @@ defmodule Rolodex.Processors.SwaggerTest do
         }
       ]
 
-      result = Swagger.process(config, routes, refs) |> Jason.decode!()
+      result = OpenAPI.process(config, routes, refs) |> Jason.decode!()
 
       assert result == %{
                "openapi" => "3.0.0",
@@ -253,7 +253,7 @@ defmodule Rolodex.Processors.SwaggerTest do
     test "It returns a map of top-level metadata" do
       config = Config.new(FullConfig)
 
-      headers = Swagger.process_headers(config)
+      headers = OpenAPI.process_headers(config)
 
       assert headers == %{
                openapi: "3.0.0",
@@ -301,7 +301,7 @@ defmodule Rolodex.Processors.SwaggerTest do
         }
       ]
 
-      processed = Swagger.process_routes(routes, Config.new(BasicConfig))
+      processed = OpenAPI.process_routes(routes, Config.new(BasicConfig))
 
       assert processed == %{
                "/foo" => %{
@@ -390,7 +390,7 @@ defmodule Rolodex.Processors.SwaggerTest do
         }
       ]
 
-      assert Swagger.process_routes(routes, Config.new(BasicConfig)) == %{
+      assert OpenAPI.process_routes(routes, Config.new(BasicConfig)) == %{
                "/foo" => %{
                  get: %{
                    operationId: "foo",
@@ -452,7 +452,7 @@ defmodule Rolodex.Processors.SwaggerTest do
         }
       }
 
-      assert Swagger.process_refs(refs, Config.new(FullConfig)) == %{
+      assert OpenAPI.process_refs(refs, Config.new(FullConfig)) == %{
                requestBodies: %{
                  "UserRequestBody" => %{
                    content: %{
