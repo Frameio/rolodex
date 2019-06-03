@@ -1,4 +1,4 @@
-defmodule Rolodex.Processors.Swagger do
+defmodule Rolodex.Processors.OpenAPI do
   @behaviour Rolodex.Processor
   @open_api_version "3.0.0"
 

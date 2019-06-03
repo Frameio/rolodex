@@ -28,7 +28,7 @@ defmodule Rolodex do
   annotations on your API route action functions for the Rolodex parser to handle
   - **Generic serialization** - The `Rolodex.Processor` behaviour encapsulates
   the basic steps needed to serialize API metadata into documentation. Rolodex
-  ships with a valid Swagger JSON processor (see: `Rolodex.Processors.Swagger`)
+  ships with a valid OpenAPI (Swagger) JSON processor (see: `Rolodex.Processors.OpenAPI`)
   - **Generic writing** - The `Rolodex.Writer` behaviour encapsulates the basic
   steps needed to write out formatted docs. Rolodex ships with a file writer (
   see: `Rolodex.Writers.FileWriter`)
