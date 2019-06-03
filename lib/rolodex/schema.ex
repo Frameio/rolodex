@@ -76,6 +76,8 @@ defmodule Rolodex.Schema do
   one argument is the field `identifier`. This can be used to fetch the field
   metadata later.
 
+  See `Rolodex.Field` for more information about valid field metadata.
+
   Accepts
   - `identifier` - field name
   - `type` - either an atom or another Rolodex.Schema module
@@ -98,6 +100,10 @@ defmodule Rolodex.Schema do
 
           # A field that is an array of items of one-or-more types
           field :multi, :list, of: [:string, OtherSchema]
+
+          # You can use a shorthand to define a list field, the below is identical
+          # to the above
+          field :multi, [:string, OtherSchema]
 
           # A field that is one of the possible provided types
           field :any, :one_of, of: [:string, OtherSchema]

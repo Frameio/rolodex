@@ -20,6 +20,9 @@ defmodule Rolodex.Mocks.User do
     # List of one type
     field(:comments, :list, of: [Rolodex.Mocks.Comment])
 
+    # Can use the list shorthand
+    field :short_comments, [Rolodex.Mocks.Comment]
+
     # List of multiple types
     field(:comments_of_many_types, :list,
       of: [:string, Rolodex.Mocks.Comment],

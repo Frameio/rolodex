@@ -23,6 +23,7 @@ defmodule Rolodex.SchemaTest do
                comment: %{type: :ref, ref: Comment},
                parent: %{type: :ref, ref: Parent},
                comments: %{type: :list, of: [%{type: :ref, ref: Comment}]},
+               short_comments: %{type: :list, of: [%{type: :ref, ref: Comment}]},
                comments_of_many_types: %{
                  desc: "List of text or comment",
                  type: :list,
@@ -59,6 +60,10 @@ defmodule Rolodex.SchemaTest do
                    type: :list,
                    of: [%{type: :ref, ref: Comment}]
                  },
+                 short_comments: %{
+                  type: :list,
+                  of: [%{type: :ref, ref: Comment}]
+                },
                  comments_of_many_types: %{
                    type: :list,
                    desc: "List of text or comment",

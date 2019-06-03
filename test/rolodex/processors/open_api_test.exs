@@ -187,6 +187,12 @@ defmodule Rolodex.Processors.OpenAPITest do
                            "$ref" => "#/components/schemas/Comment"
                          }
                        },
+                       "short_comments" => %{
+                        "type" => "array",
+                        "items" => %{
+                          "$ref" => "#/components/schemas/Comment"
+                        }
+                      },
                        "comments_of_many_types" => %{
                          "type" => "array",
                          "description" => "List of text or comment",
@@ -433,6 +439,119 @@ defmodule Rolodex.Processors.OpenAPITest do
                }
              }
     end
+
+    test "It processes fields that should become formatted strings" do
+      routes = [
+        %Route{
+          id: "foo",
+          path: "/foo",
+          verb: :get,
+          desc: "GET /foo",
+          query_params: %{
+            id: %{type: :uuid},
+            email: %{type: :email},
+            url: %{type: :uri},
+            date: %{type: :date},
+            date_and_time: %{type: :datetime},
+            other_date_and_time: %{type: :"date-time"},
+            pass: %{type: :password},
+            chunk: %{type: :byte},
+            chunks: %{type: :binary}
+          },
+          responses: %{200 => %{type: :ref, ref: UserResponse}}
+        }
+      ]
+
+      assert OpenAPI.process_routes(routes, Config.new(BasicConfig)) == %{
+               "/foo" => %{
+                 get: %{
+                   operationId: "foo",
+                   summary: "GET /foo",
+                   security: [],
+                   tags: [],
+                   parameters: [
+                     %{
+                       in: :query,
+                       name: :chunk,
+                       schema: %{
+                         type: :string,
+                         format: :byte
+                       }
+                     },
+                     %{
+                       in: :query,
+                       name: :chunks,
+                       schema: %{
+                         type: :string,
+                         format: :binary
+                       }
+                     },
+                     %{
+                       in: :query,
+                       name: :date,
+                       schema: %{
+                         type: :string,
+                         format: :date
+                       }
+                     },
+                     %{
+                       in: :query,
+                       name: :date_and_time,
+                       schema: %{
+                         type: :string,
+                         format: :"date-time"
+                       }
+                     },
+                     %{
+                       in: :query,
+                       name: :email,
+                       schema: %{
+                         type: :string,
+                         format: :email
+                       }
+                     },
+                     %{
+                       in: :query,
+                       name: :id,
+                       schema: %{
+                         type: :string,
+                         format: :uuid
+                       }
+                     },
+                     %{
+                       in: :query,
+                       name: :other_date_and_time,
+                       schema: %{
+                         type: :string,
+                         format: :"date-time"
+                       }
+                     },
+                     %{
+                       in: :query,
+                       name: :pass,
+                       schema: %{
+                         type: :string,
+                         format: :password
+                       }
+                     },
+                     %{
+                       in: :query,
+                       name: :url,
+                       schema: %{
+                         type: :string,
+                         format: :uri
+                       }
+                     }
+                   ],
+                   responses: %{
+                     200 => %{
+                       "$ref" => "#/components/responses/UserResponse"
+                     }
+                   }
+                 }
+               }
+             }
+    end
   end
 
   describe "#process_refs/1" do
@@ -509,6 +628,12 @@ defmodule Rolodex.Processors.OpenAPITest do
                          "$ref" => "#/components/schemas/Comment"
                        }
                      },
+                     short_comments: %{
+                      type: :array,
+                      items: %{
+                        "$ref" => "#/components/schemas/Comment"
+                      }
+                    },
                      comments_of_many_types: %{
                        type: :array,
                        description: "List of text or comment",
