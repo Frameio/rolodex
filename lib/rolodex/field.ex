@@ -26,7 +26,7 @@ defmodule Rolodex.Field do
 
   ## Examples
 
-  ### Parsing primitive data types (e.g. `string`)
+  ### Parsing primitive data types (e.g. `integer`)
 
   Valid options for a primitive are:
 
@@ -39,12 +39,36 @@ defmodule Rolodex.Field do
   - `required`
 
       # Creating a simple field with a primitive type
-      iex> Rolodex.Field.new(:string)
-      %{type: :string}
+      iex> Rolodex.Field.new(:integer)
+      %{type: :integer}
 
       # With additional options
-      iex> Rolodex.Field.new(type: :string, desc: "My string", enum: ["foo", "bar"])
-      %{type: :string, desc: "My string", enum: ["foo", "bar"]}
+      iex> Rolodex.Field.new(type: :integer, desc: "My count", enum: [1, 2])
+      %{type: :integer, desc: "My count", enum: [1, 2]}
+
+  ### OpenAPI string formats
+
+  When serializing docs for OpenAPI (i.e. Swagger), the following primitive field
+  types will be converted into string formats:
+
+  - `date`
+  - `datetime`
+  - `date-time`
+  - `password`
+  - `byte`
+  - `binary`
+  - `uuid`
+  - `email`
+  - `uri`
+
+  For example:
+
+      # The following field
+      iex> Rolodex.Field.new(:date)
+      %{type: :date}
+
+      # Will be serialized like the following for OpenAPI docs
+      %{type: :string, format: :date}
 
   ### Parsing collections: objects and lists
 

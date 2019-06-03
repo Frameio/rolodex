@@ -20,7 +20,9 @@ defmodule Mix.Tasks.Rolodex.Gen.Docs do
       {:error, err}, acc -> [err | acc]
     end)
     |> case do
-      [] -> IO.puts("Done!")
+      [] ->
+        IO.puts("Done!")
+
       errs ->
         IO.puts("Rolodex failed to compile some docs with the following errors:")
         Enum.each(errs, &IO.inspect(&1))

@@ -262,6 +262,12 @@ defmodule RolodexTest do
                              "$ref" => "#/components/schemas/Comment"
                            }
                          },
+                         "short_comments" => %{
+                          "type" => "array",
+                          "items" => %{
+                            "$ref" => "#/components/schemas/Comment"
+                          }
+                        },
                          "comments_of_many_types" => %{
                            "type" => "array",
                            "description" => "List of text or comment",
@@ -668,6 +674,12 @@ defmodule RolodexTest do
                              "$ref" => "#/components/schemas/Comment"
                            }
                          },
+                         "short_comments" => %{
+                          "type" => "array",
+                          "items" => %{
+                            "$ref" => "#/components/schemas/Comment"
+                          }
+                        },
                          "comments_of_many_types" => %{
                            "type" => "array",
                            "description" => "List of text or comment",

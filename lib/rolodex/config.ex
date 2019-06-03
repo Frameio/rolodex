@@ -50,7 +50,7 @@ defmodule Rolodex.Config do
   - `locale` (default: `"en"`) - Locale key to use when processing descriptions
   - `pipelines` (default: `%{}`) - Map of pipeline configs. Used to set default
   parameter values for all routes in a pipeline. See `Rolodex.PipelineConfig`.
-  - `render_groups` (default: `%Rolodex.RenderGroupConfig{}`) - List of render
+  - `render_groups` (default: `Rolodex.RenderGroupConfig`) - List of render
   groups.
   - `server_urls` (default: []) - List of base url(s) for your API paths
 
@@ -215,7 +215,7 @@ defmodule Rolodex.RenderGroupConfig do
   out routes from your documentation. Filters are invoked in
   `Rolodex.Route.matches_filter?/2`. If the match returns true, the route will be
   filtered out of the docs result for this render group.
-  - `processor` (default: `Rolodex.Processors.Swagger`) - Module implementing
+  - `processor` (default: `Rolodex.Processors.OpenAPI`) - Module implementing
   the `Rolodex.Processor` behaviour
   - `writer` (default: `Rolodex.Writers.FileWriter`) - Module implementing the
   `Rolodex.Writer` behaviour to be used to write out the docs
@@ -224,7 +224,7 @@ defmodule Rolodex.RenderGroupConfig do
   """
 
   defstruct filters: :none,
-            processor: Rolodex.Processors.Swagger,
+            processor: Rolodex.Processors.OpenAPI,
             writer: Rolodex.Writers.FileWriter,
             writer_opts: [file_name: "api.json"]
 

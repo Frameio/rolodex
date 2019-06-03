@@ -1,15 +1,26 @@
-defmodule Rolodex.Processors.Swagger do
+defmodule Rolodex.Processors.OpenAPI do
   @behaviour Rolodex.Processor
   @open_api_version "3.0.0"
 
-  @schema_metadata_keys [
-    :default,
-    :enum,
-    :format,
-    :maximum,
-    :minimum,
-    :type
-  ]
+  @schema_metadata_keys ~w(
+    default
+    enum
+    format
+    maximum
+    minimum
+    type
+  )a
+
+  @valid_string_formats ~w(
+    date
+    date-time
+    password
+    byte
+    binary
+    uuid
+    email
+    uri
+  )a
 
   alias Rolodex.{Config, Field, Headers, Route}
 
@@ -259,9 +270,16 @@ defmodule Rolodex.Processors.Swagger do
     }
   end
 
-  defp process_schema_field(%{type: :uuid} = field) do
+  defp process_schema_field(%{type: type} = field) when type in @valid_string_formats do
     field
-    |> Map.merge(%{type: :string, format: :uuid})
+    |> set_formatted_string_field(type)
+    |> process_schema_field()
+  end
+
+  # Also support datetime as a single word b/c the dash is weird especially in an atom
+  defp process_schema_field(%{type: :datetime} = field) do
+    field
+    |> set_formatted_string_field(:"date-time")
     |> process_schema_field()
   end
 
@@ -296,6 +314,12 @@ defmodule Rolodex.Processors.Swagger do
   end
 
   defp set_param_description(param), do: param
+
+  defp set_formatted_string_field(field, format) do
+    field
+    |> Map.put(:type, :string)
+    |> Map.put(:format, format)
+  end
 
   defp ref_path(mod) do
     case Field.get_ref_type(mod) do
