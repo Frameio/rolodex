@@ -11,7 +11,8 @@ defmodule Rolodex.RequestBodyTest do
     MultiRequestBody,
     User,
     Comment,
-    Parent
+    Parent,
+    InlineMacroSchemaRequest
   }
 
   doctest RequestBody
@@ -72,6 +73,18 @@ defmodule Rolodex.RequestBodyTest do
                    type: :list,
                    of: [%{type: :ref, ref: User}]
                  }
+               }
+             }
+    end
+
+    test "It handles an inline macro" do
+      assert InlineMacroSchemaRequest.__request_body__({"application/json", :schema}) == %{
+               type: :object,
+               properties: %{
+                 created_at: %{type: :datetime},
+                 id: %{type: :uuid, desc: "The comment id"},
+                 text: %{type: :string},
+                 mentions: %{type: :list, of: [%{type: :uuid}]}
                }
              }
     end

@@ -17,45 +17,47 @@ defmodule Rolodex.SchemaTest do
     test "It generates schema metadata" do
       assert User.__schema__(:name) == "User"
       assert User.__schema__(:desc) == "A user record"
-      assert User.__schema__(:partials) == []
 
-      assert User.__schema__(:fields) == %{
-               id: %{type: :uuid, desc: "The id of the user", required: true},
-               email: %{type: :string, desc: "The email of the user", required: true},
-               comment: %{type: :ref, ref: Comment},
-               parent: %{type: :ref, ref: Parent},
-               comments: %{type: :list, of: [%{type: :ref, ref: Comment}]},
-               short_comments: %{type: :list, of: [%{type: :ref, ref: Comment}]},
-               comments_of_many_types: %{
-                 desc: "List of text or comment",
-                 type: :list,
-                 of: [
-                   %{type: :string},
-                   %{type: :ref, ref: Comment}
-                 ]
-               },
-               multi: %{
-                 type: :one_of,
-                 of: [
-                   %{type: :string},
-                   %{type: :ref, ref: NotFound}
-                 ]
-               },
-               private: %{type: :boolean},
-               archived: %{type: :boolean},
-               active: %{type: :boolean}
+      assert User.__schema__({nil, :schema}) == %{
+               type: :object,
+               properties: %{
+                 id: %{type: :uuid, desc: "The id of the user", required: true},
+                 email: %{type: :string, desc: "The email of the user", required: true},
+                 comment: %{type: :ref, ref: Comment},
+                 parent: %{type: :ref, ref: Parent},
+                 comments: %{type: :list, of: [%{type: :ref, ref: Comment}]},
+                 short_comments: %{type: :list, of: [%{type: :ref, ref: Comment}]},
+                 comments_of_many_types: %{
+                   desc: "List of text or comment",
+                   type: :list,
+                   of: [
+                     %{type: :string},
+                     %{type: :ref, ref: Comment}
+                   ]
+                 },
+                 multi: %{
+                   type: :one_of,
+                   of: [
+                     %{type: :string},
+                     %{type: :ref, ref: NotFound}
+                   ]
+                 },
+                 private: %{type: :boolean},
+                 archived: %{type: :boolean},
+                 active: %{type: :boolean}
+               }
              }
     end
   end
 
   describe "#partial/1 macro" do
     test "It will collect schema refs, plain keyword lists, or plain maps for merging" do
-      assert WithPartials.__schema__(:partials) |> length() == 2
-      assert WithPartials.__schema__(:partials) |> Enum.at(0) == %{type: :ref, ref: Comment}
-
-      assert WithPartials.__schema__(:partials) |> Enum.at(1) == %{
+      assert WithPartials.__schema__({nil, :schema}) == %{
                type: :object,
                properties: %{
+                 created_at: %{type: :datetime},
+                 id: %{type: :uuid, desc: "The comment id"},
+                 text: %{type: :string},
                  mentions: %{type: :list, of: [%{type: :uuid}]}
                }
              }
