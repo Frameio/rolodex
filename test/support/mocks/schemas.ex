@@ -21,7 +21,7 @@ defmodule Rolodex.Mocks.User do
     field(:comments, :list, of: [Rolodex.Mocks.Comment])
 
     # Can use the list shorthand
-    field :short_comments, [Rolodex.Mocks.Comment]
+    field(:short_comments, [Rolodex.Mocks.Comment])
 
     # List of multiple types
     field(:comments_of_many_types, :list,
@@ -83,5 +83,16 @@ defmodule Rolodex.Mocks.SecondNested do
 
   schema "SecondNested" do
     field(:id, :uuid)
+  end
+end
+
+defmodule Rolodex.Mocks.WithPartials do
+  use Rolodex.Schema
+
+  schema "WithPartials" do
+    field(:created_at, :datetime)
+
+    partial(Rolodex.Mocks.Comment)
+    partial(mentions: [:uuid])
   end
 end

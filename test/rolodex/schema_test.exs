@@ -7,7 +7,8 @@ defmodule Rolodex.SchemaTest do
     Comment,
     NotFound,
     Parent,
-    User
+    User,
+    WithPartials
   }
 
   doctest Schema
@@ -16,6 +17,7 @@ defmodule Rolodex.SchemaTest do
     test "It generates schema metadata" do
       assert User.__schema__(:name) == "User"
       assert User.__schema__(:desc) == "A user record"
+      assert User.__schema__(:partials) == []
 
       assert User.__schema__(:fields) == %{
                id: %{type: :uuid, desc: "The id of the user", required: true},
@@ -46,6 +48,20 @@ defmodule Rolodex.SchemaTest do
     end
   end
 
+  describe "#partial/1 macro" do
+    test "It will collect schema refs, plain keyword lists, or plain maps for merging" do
+      assert WithPartials.__schema__(:partials) |> length() == 2
+      assert WithPartials.__schema__(:partials) |> Enum.at(0) == %{type: :ref, ref: Comment}
+
+      assert WithPartials.__schema__(:partials) |> Enum.at(1) == %{
+               type: :object,
+               properties: %{
+                 mentions: %{type: :list, of: [%{type: :uuid}]}
+               }
+             }
+    end
+  end
+
   describe "#to_map/1" do
     test "It serializes the schema into a Rolodex.Field struct`" do
       assert Schema.to_map(User) == %{
@@ -61,9 +77,9 @@ defmodule Rolodex.SchemaTest do
                    of: [%{type: :ref, ref: Comment}]
                  },
                  short_comments: %{
-                  type: :list,
-                  of: [%{type: :ref, ref: Comment}]
-                },
+                   type: :list,
+                   of: [%{type: :ref, ref: Comment}]
+                 },
                  comments_of_many_types: %{
                    type: :list,
                    desc: "List of text or comment",
@@ -82,6 +98,19 @@ defmodule Rolodex.SchemaTest do
                  private: %{type: :boolean},
                  archived: %{type: :boolean},
                  active: %{type: :boolean}
+               }
+             }
+    end
+
+    test "It will serialize with partials merged in" do
+      assert Schema.to_map(WithPartials) == %{
+               type: :object,
+               desc: nil,
+               properties: %{
+                 created_at: %{type: :datetime},
+                 id: %{type: :uuid, desc: "The comment id"},
+                 text: %{type: :string},
+                 mentions: %{type: :list, of: [%{type: :uuid}]}
                }
              }
     end
