@@ -188,11 +188,11 @@ defmodule Rolodex.Processors.OpenAPITest do
                          }
                        },
                        "short_comments" => %{
-                        "type" => "array",
-                        "items" => %{
-                          "$ref" => "#/components/schemas/Comment"
-                        }
-                      },
+                         "type" => "array",
+                         "items" => %{
+                           "$ref" => "#/components/schemas/Comment"
+                         }
+                       },
                        "comments_of_many_types" => %{
                          "type" => "array",
                          "description" => "List of text or comment",
@@ -629,11 +629,11 @@ defmodule Rolodex.Processors.OpenAPITest do
                        }
                      },
                      short_comments: %{
-                      type: :array,
-                      items: %{
-                        "$ref" => "#/components/schemas/Comment"
-                      }
-                    },
+                       type: :array,
+                       items: %{
+                         "$ref" => "#/components/schemas/Comment"
+                       }
+                     },
                      comments_of_many_types: %{
                        type: :array,
                        description: "List of text or comment",

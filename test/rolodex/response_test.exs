@@ -13,7 +13,8 @@ defmodule Rolodex.ResponseTest do
     User,
     Comment,
     Parent,
-    PaginationHeaders
+    PaginationHeaders,
+    InlineMacroSchemaResponse
   }
 
   doctest Response
@@ -105,6 +106,18 @@ defmodule Rolodex.ResponseTest do
                    type: :list,
                    of: [%{type: :ref, ref: User}]
                  }
+               }
+             }
+    end
+
+    test "It handles an inline macro" do
+      assert InlineMacroSchemaResponse.__response__({"application/json", :schema}) == %{
+               type: :object,
+               properties: %{
+                 created_at: %{type: :datetime},
+                 id: %{type: :uuid, desc: "The comment id"},
+                 text: %{type: :string},
+                 mentions: %{type: :list, of: [%{type: :uuid}]}
                }
              }
     end

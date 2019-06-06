@@ -15,10 +15,11 @@ defmodule Rolodex.Headers do
   - `to_map/1` - serializes the headers module into a map
   """
 
-  alias Rolodex.{ContentUtils, Field}
+  alias Rolodex.{DSL, Field}
 
   defmacro __using__(_) do
     quote do
+      use Rolodex.DSL
       import Rolodex.Headers, only: :macros
     end
   end
@@ -44,8 +45,6 @@ defmodule Rolodex.Headers do
   """
   defmacro headers(name, do: block) do
     quote do
-      Module.register_attribute(__MODULE__, :headers, accumulate: true)
-
       unquote(block)
 
       def __headers__(:name), do: unquote(name)
@@ -64,7 +63,7 @@ defmodule Rolodex.Headers do
   valid options.
   """
   defmacro field(identifier, type, opts \\ []) do
-    ContentUtils.set_field(:headers, identifier, type, opts)
+    DSL.set_field(:headers, identifier, type, opts)
   end
 
   @doc """
@@ -88,17 +87,7 @@ defmodule Rolodex.Headers do
       false
   """
   @spec is_headers_module?(any()) :: boolean()
-  def is_headers_module?(item)
-
-  def is_headers_module?(module) when is_atom(module) do
-    try do
-      module.__info__(:functions) |> Keyword.has_key?(:__headers__)
-    rescue
-      _ -> false
-    end
-  end
-
-  def is_headers_module?(_), do: false
+  def is_headers_module?(mod), do: DSL.is_module_of_type?(mod, :__headers__)
 
   @doc """
   Serializes the `Rolodex.Headers` metadata into a formatted map

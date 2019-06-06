@@ -16,10 +16,11 @@ defmodule Rolodex.Schema do
   - `get_refs/1` - traverses a schema and searches for any nested schemas within
   """
 
-  alias Rolodex.{ContentUtils, Field}
+  alias Rolodex.{DSL, Field}
 
   defmacro __using__(_opts) do
     quote do
+      use Rolodex.DSL
       import Rolodex.Schema
     end
   end
@@ -53,30 +54,26 @@ defmodule Rolodex.Schema do
 
           # A field that is one of the possible provided types
           field :any, :one_of, of: [:string, OtherSchema]
+
+          # Treats OtherSchema as a partial to be merged into this schema
+          partial OtherSchema
         end
       end
   """
   defmacro schema(name, opts \\ [], do: block) do
-    quote do
-      Module.register_attribute(__MODULE__, :fields, accumulate: true)
+    schema_body_ast = DSL.set_schema(:__schema__, do: block)
 
-      unquote(block)
+    quote do
+      unquote(schema_body_ast)
 
       def __schema__(:name), do: unquote(name)
       def __schema__(:desc), do: unquote(Keyword.get(opts, :desc, nil))
-
-      def __schema__(:fields) do
-        Map.new(@fields, fn {id, opts} -> {id, Field.new(opts)} end)
-      end
     end
   end
 
   @doc """
-  Adds a new field to the schema. Will generate a method `__field__/1` where the
-  one argument is the field `identifier`. This can be used to fetch the field
-  metadata later.
-
-  See `Rolodex.Field` for more information about valid field metadata.
+  Adds a new field to the schema. See `Rolodex.Field` for more information about
+  valid field metadata.
 
   Accepts
   - `identifier` - field name
@@ -111,8 +108,67 @@ defmodule Rolodex.Schema do
       end
   """
   defmacro field(identifier, type, opts \\ []) do
-    ContentUtils.set_field(:fields, identifier, type, opts)
+    DSL.set_field(:fields, identifier, type, opts)
   end
+
+  @doc """
+  Adds a new partial to the schema. A partial is another schema that will be
+  serialized and merged into the top-level properties map for the current schema.
+  Partials are useful for shared parameters used across multiple schemas. Bare
+  keyword lists and maps that are parseable by `Rolodex.Field` are also supported.
+
+  ## Example
+
+      defmodule AgeSchema do
+        use Rolodex.Schema
+
+        schema "AgeSchema" do
+          field :age, :integer
+          field :date_of_birth, :datetime
+          field :city_of_birth, :string
+        end
+      end
+
+      defmodule MySchema do
+        use Rolodex.Schema
+
+        schema "MySchema" do
+          field :id, :uuid
+          field :name, :string
+
+          # A partial via another schema
+          partial AgeSchema
+
+          # A partial via a bare keyword list
+          partial [
+            city: :string,
+            state: :string,
+            country: :string
+          ]
+        end
+      end
+
+      # MySchema will be serialized by `to_map/1` as:
+      %{
+        type: :object,
+        desc: nil,
+        properties: %{
+          id: %{type: :uuid},
+          name: %{type: :string},
+
+          # From the AgeSchema partial
+          age: %{type: :integer},
+          date_of_birth: %{type: :datetime}
+          city_of_birth: %{type: :string},
+
+          # From the keyword list partial
+          city: %{type: :string},
+          state: %{type: :string},
+          country: %{type: :string}
+        }
+      }
+  """
+  defmacro partial(mod), do: DSL.set_partial(mod)
 
   @doc """
   Determines if an arbitrary item is a module that has defined a reusable schema
@@ -135,19 +191,7 @@ defmodule Rolodex.Schema do
       false
   """
   @spec is_schema_module?(any()) :: boolean()
-  def is_schema_module?(item)
-
-  def is_schema_module?(module) when is_atom(module) do
-    try do
-      module.__info__(:functions)
-      |> Keyword.has_key?(:__schema__)
-    rescue
-      # Any error means that `module` isn't a module and so we can just say `false`
-      _ -> false
-    end
-  end
-
-  def is_schema_module?(_), do: false
+  def is_schema_module?(mod), do: DSL.is_module_of_type?(mod, :__schema__)
 
   @doc """
   Serializes the `Rolodex.Schema` metadata into a formatted map.
@@ -209,10 +253,9 @@ defmodule Rolodex.Schema do
       }
   """
   @spec to_map(module()) :: map()
-  def to_map(schema) do
-    desc = schema.__schema__(:desc)
-    fields = schema.__schema__(:fields)
-    Field.new(type: :object, properties: fields, desc: desc)
+  def to_map(mod) do
+    mod.__schema__({nil, :schema})
+    |> Map.put(:desc, mod.__schema__(:desc))
   end
 
   @doc """
@@ -220,8 +263,8 @@ defmodule Rolodex.Schema do
   Schemas within. See `Rolodex.Field.get_refs/1` for more info.
   """
   @spec get_refs(module()) :: [module()]
-  def get_refs(schema) do
-    schema
+  def get_refs(mod) do
+    mod
     |> to_map()
     |> Field.get_refs()
   end

@@ -5,7 +5,8 @@ defmodule Rolodex.Mocks.TestController do
     MultiResponse,
     PaginatedUsersResponse,
     PaginationHeaders,
-    ErrorResponse
+    ErrorResponse,
+    ParamsSchema
   }
 
   @doc [
@@ -78,6 +79,15 @@ defmodule Rolodex.Mocks.TestController do
     }
   ]
   def with_bare_maps(_, _), do: nil
+
+  @doc [
+    query_params: ParamsSchema,
+    path_params: ParamsSchema,
+    responses: %{
+      200 => UserResponse
+    }
+  ]
+  def params_via_schema(_, _), do: nil
 
   def undocumented(_, _), do: nil
 end

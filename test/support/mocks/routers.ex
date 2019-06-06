@@ -11,6 +11,9 @@ defmodule Rolodex.Mocks.TestRouter do
     get("/multi", TestController, :multi)
     get("/nested/:nested_id/multi", TestController, :multi)
 
+    # This action function uses schemas for query and path params plus partials
+    get("/partials", TestController, :params_via_schema)
+
     # This route action does not exist
     put("/demo/missing/:id", TestController, :missing_action)
   end

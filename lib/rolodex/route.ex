@@ -142,14 +142,19 @@ defmodule Rolodex.Route do
 
   Parameters in the route path. Valid input is a map or keyword list, where each
   key is a path parameter name and each value is a description of the value in
-  the form of an atom, a map, or a list.
+  the form of an atom, a map, or a list. Another valid input is a `Rolodex.Schema`
+  module. The attributes at the top-level of the schema will be serialized as
+  the path parameters.
 
   Each parameter value can also specify the following: `minimum` (default:
   `nil`), `maximum` (default: `nil`), default (default: `nil`), and required
   (default: `required`).
 
       @doc [
-        # Simplest path parameter description: a name with a concrete type
+        # Reference to a schema module
+        path_params: PathParamsSchema,
+
+        # Simple inline path parameter description: a name with a concrete type
         path_params: %{id: :uuid},
         path_params: [id: :uuid],
 
@@ -178,14 +183,19 @@ defmodule Rolodex.Route do
 
   Query parameters. Valid input is a map or keyword list, where each key is a
   query parameter name and each value is a description of the value in the form
-  of an atom, a map, or a list.
+  of an atom, a map, or a list. Another valid input is a `Rolodex.Schema`
+  module. The attributes at the top-level of the schema will be serialized as
+  the query parameters.
 
   Each query value can also specify the following: `minimum` (default: `nil`),
   `maximum` (default: `nil`), default (default: `nil`), and required (default:
   `required`).
 
       @doc [
-        # Simplest query parameter description: a name with a concrete type
+        # Reference to a schema module
+        path_params: QueryParamsSchema,
+
+        # Simple inline query parameter description: a name with a concrete type
         query_params: %{id: :uuid},
         query_params: [id: :uuid],
 
@@ -206,15 +216,6 @@ defmodule Rolodex.Route do
             minimum: 0,
             maximum: 10,
             default: 0
-          ]
-        ],
-
-        # Multiple query values
-        query_params: [
-          id: :uuid,
-          some_object: [
-            id: :uuid,
-            checksum: :string
           ]
         ]
       ]
@@ -360,7 +361,8 @@ defmodule Rolodex.Route do
     Config,
     Headers,
     PipelineConfig,
-    Field
+    Field,
+    Schema
   }
 
   import Rolodex.Utils, only: [to_struct: 2, ok: 1]
@@ -526,9 +528,10 @@ defmodule Rolodex.Route do
   end
 
   defp parse_param(param) when is_atom(param) do
-    case Headers.is_headers_module?(param) do
-      true -> Headers.to_map(param)
-      false -> Field.new(param)
+    cond do
+      Headers.is_headers_module?(param) -> Headers.to_map(param)
+      Schema.is_schema_module?(param) -> Schema.to_map(param) |> Map.get(:properties)
+      true -> Field.new(param)
     end
   end
 
