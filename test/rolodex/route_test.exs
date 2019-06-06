@@ -275,6 +275,48 @@ defmodule Rolodex.RouteTest do
              }
     end
 
+    test "It serializes query and path param schema refs", %{config: config} do
+      phoenix_route = %Router.Route{
+        plug: TestController,
+        opts: :params_via_schema,
+        path: "/v2/test",
+        pipe_through: [],
+        verb: :get
+      }
+
+      %Route{query_params: query, path_params: path} = Route.new(phoenix_route, config)
+
+      assert query == %{
+               account_id: %{type: :uuid},
+               team_id: %{
+                 type: :integer,
+                 maximum: 10,
+                 minimum: 0,
+                 required: true,
+                 default: 2
+               },
+               created_at: %{type: :datetime},
+               id: %{type: :uuid, desc: "The comment id"},
+               text: %{type: :string},
+               mentions: %{type: :list, of: [%{type: :uuid}]}
+             }
+
+      assert path == %{
+               account_id: %{type: :uuid},
+               team_id: %{
+                 type: :integer,
+                 maximum: 10,
+                 minimum: 0,
+                 required: true,
+                 default: 2
+               },
+               created_at: %{type: :datetime},
+               id: %{type: :uuid, desc: "The comment id"},
+               text: %{type: :string},
+               mentions: %{type: :list, of: [%{type: :uuid}]}
+             }
+    end
+
     test "It handles an undocumented route" do
       phoenix_route = %Router.Route{
         plug: TestController,
