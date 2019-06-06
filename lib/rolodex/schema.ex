@@ -53,17 +53,22 @@ defmodule Rolodex.Schema do
 
           # A field that is one of the possible provided types
           field :any, :one_of, of: [:string, OtherSchema]
+
+          # Treats OtherSchema as a partial to be merged into this schema
+          partial OtherSchema
         end
       end
   """
   defmacro schema(name, opts \\ [], do: block) do
     quote do
       Module.register_attribute(__MODULE__, :fields, accumulate: true)
+      Module.register_attribute(__MODULE__, :partials, accumulate: true)
 
       unquote(block)
 
       def __schema__(:name), do: unquote(name)
       def __schema__(:desc), do: unquote(Keyword.get(opts, :desc, nil))
+      def __schema__(:partials), do: @partials |> Enum.reverse()
 
       def __schema__(:fields) do
         Map.new(@fields, fn {id, opts} -> {id, Field.new(opts)} end)
@@ -112,6 +117,69 @@ defmodule Rolodex.Schema do
   """
   defmacro field(identifier, type, opts \\ []) do
     ContentUtils.set_field(:fields, identifier, type, opts)
+  end
+
+  @doc """
+  Adds a new partial to the schema. A partial is another schema that will be
+  serialized and merged into the top-level properties map for the current schema.
+  Partials are useful for shared parameters used across multiple schemas. Bare
+  keyword lists and maps that are parseable by `Rolodex.Field` are also supported.
+
+  ## Example
+
+      defmodule AgeSchema do
+        use Rolodex.Schema
+
+        schema "AgeSchema" do
+          field :age, :integer
+          field :date_of_birth, :datetime
+          field :city_of_birth, :string
+        end
+      end
+
+      defmodule MySchema do
+        use Rolodex.Schema
+
+        schema "MySchema" do
+          field :id, :uuid
+          field :name, :string
+
+          # A partial via another schema
+          partial AgeSchema
+
+          # A partial via a bare keyword list
+          partial [
+            city: :string,
+            state: :string,
+            country: :string
+          ]
+        end
+      end
+
+      # MySchema will be serialized by `to_map/1` as:
+      %{
+        type: :object,
+        desc: nil,
+        properties: %{
+          id: %{type: :uuid},
+          name: %{type: :string},
+
+          # From the AgeSchema partial
+          age: %{type: :integer},
+          date_of_birth: %{type: :datetime}
+          city_of_birth: %{type: :string},
+
+          # From the keyword list partial
+          city: %{type: :string},
+          state: %{type: :string},
+          country: %{type: :string}
+        }
+      }
+  """
+  defmacro partial(mod) do
+    quote do
+      @partials Field.new(unquote(mod))
+    end
   end
 
   @doc """
@@ -210,10 +278,26 @@ defmodule Rolodex.Schema do
   """
   @spec to_map(module()) :: map()
   def to_map(schema) do
-    desc = schema.__schema__(:desc)
-    fields = schema.__schema__(:fields)
-    Field.new(type: :object, properties: fields, desc: desc)
+    Field.new(
+      type: :object,
+      desc: schema.__schema__(:desc),
+      properties: build_schema_fields(schema)
+    )
   end
+
+  defp build_schema_fields(schema) do
+    fields = schema.__schema__(:fields)
+
+    case schema.__schema__(:partials) do
+      [] -> fields
+      partials -> Enum.reduce(partials, fields, &merge_partial/2)
+    end
+  end
+
+  defp merge_partial(%{type: :ref, ref: ref}, fields),
+    do: ref |> to_map() |> merge_partial(fields)
+
+  defp merge_partial(%{properties: props}, fields), do: Map.merge(fields, props)
 
   @doc """
   Traverses a serialized Schema and collects any nested references to other
