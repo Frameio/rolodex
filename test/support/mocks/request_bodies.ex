@@ -72,3 +72,20 @@ defmodule Rolodex.Mocks.MultiRequestBody do
     end
   end
 end
+
+defmodule Rolodex.Mocks.InlineMacroSchemaRequest do
+  use Rolodex.RequestBody
+
+  alias Rolodex.Mocks.Comment
+
+  request_body "InlineMacroSchemaRequest" do
+    content "application/json" do
+      schema do
+        field(:created_at, :datetime)
+
+        partial(Comment)
+        partial(mentions: [:uuid])
+      end
+    end
+  end
+end

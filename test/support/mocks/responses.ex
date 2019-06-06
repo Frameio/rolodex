@@ -105,3 +105,20 @@ defmodule Rolodex.Mocks.MultiResponse do
     end
   end
 end
+
+defmodule Rolodex.Mocks.InlineMacroSchemaResponse do
+  use Rolodex.Response
+
+  alias Rolodex.Mocks.Comment
+
+  response "InlineMacroSchemaResponse" do
+    content "application/json" do
+      schema do
+        field(:created_at, :datetime)
+
+        partial(Comment)
+        partial(mentions: [:uuid])
+      end
+    end
+  end
+end

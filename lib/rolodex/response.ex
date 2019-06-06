@@ -19,10 +19,11 @@ defmodule Rolodex.Response do
   refs within
   """
 
-  alias Rolodex.ContentUtils
+  alias Rolodex.DSL
 
   defmacro __using__(_opts) do
     quote do
+      use Rolodex.DSL
       import Rolodex.Response, only: :macros
     end
   end
@@ -59,15 +60,13 @@ defmodule Rolodex.Response do
       end
   """
   defmacro response(name, opts) do
-    ContentUtils.def_content_body(:__response__, name, opts)
+    DSL.def_content_body(:__response__, name, opts)
   end
 
   @doc """
   Sets a description for the response
   """
-  defmacro desc(str) do
-    ContentUtils.set_desc(str)
-  end
+  defmacro desc(str), do: DSL.set_desc(str)
 
   @doc """
   Sets headers to be included in the response. You can use a shared headers ref
@@ -101,9 +100,7 @@ defmodule Rolodex.Response do
         end
       end
   """
-  defmacro headers(metadata) do
-    ContentUtils.set_headers(metadata)
-  end
+  defmacro headers(metadata), do: DSL.set_headers(metadata)
 
   @doc """
   Defines a response shape for the given content type key
@@ -113,7 +110,7 @@ defmodule Rolodex.Response do
   - `block` - metadata about the response shape for this content type
   """
   defmacro content(key, opts) do
-    ContentUtils.def_content_type_shape(:__response__, key, opts)
+    DSL.def_content_type_shape(:__response__, key, opts)
   end
 
   @doc """
@@ -125,23 +122,32 @@ defmodule Rolodex.Response do
   - `body` - a map, which is the example data
   """
   defmacro example(name, example_body) do
-    ContentUtils.set_example(:__response__, name, example_body)
+    DSL.set_example(:__response__, name, example_body)
   end
 
   @doc """
-  Sets a schema for the current response content type. Data passed into to the
-  schema/1 macro will be parsed by `Rolodex.Field.new/1`.
+  Sets a schema for the current response content type. There are three ways
+  you can define a schema for a content-type chunk:
+
+  1. You can pass in an alias for a reusable schema defined via `Rolodex.Schema`
+  2. You can define a schema inline via the same macro syntax used in `Rolodex.Schema`
+  3. You can define a schema inline via a bare map, which will be parsed with `Rolodex.Field`
 
   ## Examples
 
-      # Response is a list, where each item is a MySchema
+      # Via a reusable schema alias
       content "application/json" do
-        schema [MySchema]
+        schema MySchema
       end
 
-      # Response is a MySchema
+      # Can define a schema inline via the schema + field + partial macros
       content "application/json" do
-        content MySchema
+        schema do
+          field :id, :uuid
+          field :name, :string, desc: "The name"
+
+          partial PaginationParams
+        end
       end
 
       # Can provide a bare map, which will be parsed via `Rolodex.Field`
@@ -155,9 +161,7 @@ defmodule Rolodex.Response do
         }
       end
   """
-  defmacro schema(mod) do
-    ContentUtils.set_schema(:__response__, mod)
-  end
+  defmacro schema(mod), do: DSL.set_schema(:__response__, mod)
 
   @doc """
   Sets a collection of schemas for the current response content type.
@@ -175,8 +179,86 @@ defmodule Rolodex.Response do
       end
   """
   defmacro schema(collection_type, opts) do
-    ContentUtils.set_schema(:__response__, collection_type, opts)
+    DSL.set_schema(:__response__, collection_type, opts)
   end
+
+  @doc """
+  Adds a new field to the schema when defining a schema inline via macros. See
+  `Rolodex.Field` for more information about valid field metadata.
+
+  Accepts
+  - `identifier` - field name
+  - `type` - either an atom or another Rolodex.Schema module
+  - `opts` - a keyword list of options, looks for `desc` and `of` (for array types)
+
+  ## Example
+
+      defmodule MyResponse do
+        use Rolodex.Response
+
+        response "MyResponse" do
+          content "application/json" do
+            schema do
+              # Atomic field with no description
+              field :id, :uuid
+
+              # Atomic field with a description
+              field :name, :string, desc: "The object's name"
+
+              # A field that refers to another, nested object
+              field :other, OtherSchema
+
+              # A field that is an array of items of one-or-more types
+              field :multi, :list, of: [:string, OtherSchema]
+
+              # You can use a shorthand to define a list field, the below is identical
+              # to the above
+              field :multi, [:string, OtherSchema]
+
+              # A field that is one of the possible provided types
+              field :any, :one_of, of: [:string, OtherSchema]
+            end
+          end
+        end
+      end
+  """
+  defmacro field(identifier, type, opts \\ []) do
+    DSL.set_field(:fields, identifier, type, opts)
+  end
+
+  @doc """
+  Adds a new partial to the schema when defining a schema inline via macros. A
+  partial is another schema that will be serialized and merged into the top-level
+  properties map for the current schema. Partials are useful for shared parameters
+  used across multiple schemas. Bare keyword lists and maps that are parseable
+  by `Rolodex.Field` are also supported.
+
+  ## Example
+
+      defmodule PaginationParams do
+        use Rolodex.Schema
+
+        schema "PaginationParams" do
+          field :page, :integer
+          field :page_size, :integer
+          field :total_pages, :integer
+        end
+      end
+
+      defmodule MyResponse do
+        use Rolodex.Response
+
+        response "MyResponse" do
+          content "application/json" do
+            schema do
+              field :id, :uuid
+              partial PaginationParams
+            end
+          end
+        end
+      end
+  """
+  defmacro partial(mod), do: DSL.set_partial(mod)
 
   @doc """
   Determines if an arbitrary item is a module that has defined a reusable response
@@ -201,7 +283,7 @@ defmodule Rolodex.Response do
       false
   """
   @spec is_response_module?(any()) :: boolean()
-  def is_response_module?(mod), do: ContentUtils.is_module_of_type?(mod, :__response__)
+  def is_response_module?(mod), do: DSL.is_module_of_type?(mod, :__response__)
 
   @doc """
   Serializes the `Rolodex.Response` metadata into a formatted map.
@@ -269,12 +351,12 @@ defmodule Rolodex.Response do
       }
   """
   @spec to_map(module()) :: map()
-  def to_map(mod), do: ContentUtils.to_map(&mod.__response__/1)
+  def to_map(mod), do: DSL.to_content_body_map(&mod.__response__/1)
 
   @doc """
   Traverses a serialized Response and collects any nested references to any
   Schemas within. See `Rolodex.Field.get_refs/1` for more info.
   """
   @spec get_refs(module()) :: [module()]
-  def get_refs(mod), do: ContentUtils.get_refs(&mod.__response__/1)
+  def get_refs(mod), do: DSL.get_refs_in_content_body(&mod.__response__/1)
 end
