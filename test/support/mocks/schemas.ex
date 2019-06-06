@@ -96,3 +96,22 @@ defmodule Rolodex.Mocks.WithPartials do
     partial(mentions: [:uuid])
   end
 end
+
+defmodule Rolodex.Mocks.ParamsSchema do
+  use Rolodex.Schema
+
+  alias Rolodex.Mocks.WithPartials
+
+  schema "ParamsSchema" do
+    field(:account_id, :uuid)
+
+    field(:team_id, :integer,
+      maximum: 10,
+      minimum: 0,
+      required: true,
+      default: 2
+    )
+
+    partial(WithPartials)
+  end
+end

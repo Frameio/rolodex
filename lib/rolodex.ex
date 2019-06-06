@@ -72,7 +72,11 @@ defmodule Rolodex do
           desc "A request body"
 
           content "application/json" do
-            schema MySchema
+            schema do
+              field :id, :integer
+              field :name, :string
+            end
+
             example :request, %{id: "123", name: "Ada Lovelace"}
           end
         end
@@ -197,10 +201,7 @@ defmodule Rolodex do
                 }
               },
               "requestBody" => %{
-                "type" => "object",
-                "properties" => %{
-                  "id" => %{"type" => "string", "format" => "uuid"}
-                }
+                "$ref" => "#/components/requestBodies/MyRequestBody"
               },
               "tags" => ["foo", "bar"]
             }
@@ -213,7 +214,11 @@ defmodule Rolodex do
               "content" => %{
                 "application/json" => %{
                   "schema" => %{
-                    "$ref" => "#/components/schemas/MySchema"
+                    "type" => "object",
+                    "properties" => %{
+                      "id" => %{"type" => "string", "format" => "uuid"},
+                      "name" => %{"type" => "string", "description" => "The name"}
+                    }
                   },
                   "examples" => %{
                     "request" => %{"id" => "123", "name" => "Ada Lovelace"}

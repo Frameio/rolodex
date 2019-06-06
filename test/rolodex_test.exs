@@ -499,6 +499,127 @@ defmodule RolodexTest do
                        "summary" => "It's an action used for multiple routes",
                        "tags" => []
                      }
+                   },
+                   "/api/partials" => %{
+                     "get" => %{
+                       "parameters" => [
+                         %{
+                           "in" => "path",
+                           "name" => "account_id",
+                           "schema" => %{
+                             "type" => "string",
+                             "format" => "uuid"
+                           }
+                         },
+                         %{
+                           "in" => "path",
+                           "name" => "created_at",
+                           "schema" => %{
+                             "type" => "string",
+                             "format" => "date-time"
+                           }
+                         },
+                         %{
+                           "in" => "path",
+                           "name" => "id",
+                           "description" => "The comment id",
+                           "schema" => %{
+                             "type" => "string",
+                             "format" => "uuid"
+                           }
+                         },
+                         %{
+                           "in" => "path",
+                           "name" => "mentions",
+                           "schema" => %{
+                             "type" => "array",
+                             "items" => %{
+                               "type" => "string",
+                               "format" => "uuid"
+                             }
+                           }
+                         },
+                         %{
+                           "in" => "path",
+                           "name" => "team_id",
+                           "required" => true,
+                           "schema" => %{
+                             "type" => "integer",
+                             "maximum" => 10,
+                             "minimum" => 0,
+                             "default" => 2
+                           }
+                         },
+                         %{
+                           "in" => "path",
+                           "name" => "text",
+                           "schema" => %{
+                             "type" => "string"
+                           }
+                         },
+                         %{
+                           "in" => "query",
+                           "name" => "account_id",
+                           "schema" => %{
+                             "type" => "string",
+                             "format" => "uuid"
+                           }
+                         },
+                         %{
+                           "in" => "query",
+                           "name" => "created_at",
+                           "schema" => %{
+                             "type" => "string",
+                             "format" => "date-time"
+                           }
+                         },
+                         %{
+                           "in" => "query",
+                           "name" => "id",
+                           "description" => "The comment id",
+                           "schema" => %{
+                             "type" => "string",
+                             "format" => "uuid"
+                           }
+                         },
+                         %{
+                           "in" => "query",
+                           "name" => "mentions",
+                           "schema" => %{
+                             "type" => "array",
+                             "items" => %{
+                               "type" => "string",
+                               "format" => "uuid"
+                             }
+                           }
+                         },
+                         %{
+                           "in" => "query",
+                           "name" => "team_id",
+                           "required" => true,
+                           "schema" => %{
+                             "type" => "integer",
+                             "maximum" => 10,
+                             "minimum" => 0,
+                             "default" => 2
+                           }
+                         },
+                         %{
+                           "in" => "query",
+                           "name" => "text",
+                           "schema" => %{
+                             "type" => "string"
+                           }
+                         }
+                       ],
+                       "responses" => %{
+                         "200" => %{"$ref" => "#/components/responses/UserResponse"}
+                       },
+                       "operationId" => "",
+                       "security" => [],
+                       "summary" => "",
+                       "tags" => []
+                     }
                    }
                  }
                }
@@ -901,6 +1022,127 @@ defmodule RolodexTest do
                        },
                        "security" => [%{"JWTAuth" => []}],
                        "summary" => "It's an action used for multiple routes",
+                       "tags" => []
+                     }
+                   },
+                   "/api/partials" => %{
+                     "get" => %{
+                       "parameters" => [
+                         %{
+                           "in" => "path",
+                           "name" => "account_id",
+                           "schema" => %{
+                             "type" => "string",
+                             "format" => "uuid"
+                           }
+                         },
+                         %{
+                           "in" => "path",
+                           "name" => "created_at",
+                           "schema" => %{
+                             "type" => "string",
+                             "format" => "date-time"
+                           }
+                         },
+                         %{
+                           "in" => "path",
+                           "name" => "id",
+                           "description" => "The comment id",
+                           "schema" => %{
+                             "type" => "string",
+                             "format" => "uuid"
+                           }
+                         },
+                         %{
+                           "in" => "path",
+                           "name" => "mentions",
+                           "schema" => %{
+                             "type" => "array",
+                             "items" => %{
+                               "type" => "string",
+                               "format" => "uuid"
+                             }
+                           }
+                         },
+                         %{
+                           "in" => "path",
+                           "name" => "team_id",
+                           "required" => true,
+                           "schema" => %{
+                             "type" => "integer",
+                             "maximum" => 10,
+                             "minimum" => 0,
+                             "default" => 2
+                           }
+                         },
+                         %{
+                           "in" => "path",
+                           "name" => "text",
+                           "schema" => %{
+                             "type" => "string"
+                           }
+                         },
+                         %{
+                           "in" => "query",
+                           "name" => "account_id",
+                           "schema" => %{
+                             "type" => "string",
+                             "format" => "uuid"
+                           }
+                         },
+                         %{
+                           "in" => "query",
+                           "name" => "created_at",
+                           "schema" => %{
+                             "type" => "string",
+                             "format" => "date-time"
+                           }
+                         },
+                         %{
+                           "in" => "query",
+                           "name" => "id",
+                           "description" => "The comment id",
+                           "schema" => %{
+                             "type" => "string",
+                             "format" => "uuid"
+                           }
+                         },
+                         %{
+                           "in" => "query",
+                           "name" => "mentions",
+                           "schema" => %{
+                             "type" => "array",
+                             "items" => %{
+                               "type" => "string",
+                               "format" => "uuid"
+                             }
+                           }
+                         },
+                         %{
+                           "in" => "query",
+                           "name" => "team_id",
+                           "required" => true,
+                           "schema" => %{
+                             "type" => "integer",
+                             "maximum" => 10,
+                             "minimum" => 0,
+                             "default" => 2
+                           }
+                         },
+                         %{
+                           "in" => "query",
+                           "name" => "text",
+                           "schema" => %{
+                             "type" => "string"
+                           }
+                         }
+                       ],
+                       "responses" => %{
+                         "200" => %{"$ref" => "#/components/responses/UserResponse"}
+                       },
+                       "operationId" => "",
+                       "security" => [],
+                       "summary" => "",
                        "tags" => []
                      }
                    }
