@@ -219,6 +219,35 @@ defmodule Rolodex.RouteTest do
              }
     end
 
+    test "It uses the Phoenix route verb to pull out docs for a multi-headed controller action",
+        %{
+          config: config
+        } do
+    result =
+      %Router.Route{
+        plug: TestController,
+        opts: :multi,
+        path: "/api/nested/:nested_id/multi",
+        verb: :post
+      }
+      |> Route.new(config)
+
+    assert result == %Route{
+              auth: %{JWTAuth: []},
+              desc: "It's an action used for multiple routes",
+              path_params: %{
+                nested_id: %{type: :uuid, required: true}
+              },
+              responses: %{
+                200 => %{type: :ref, ref: UserResponse},
+                404 => %{type: :ref, ref: ErrorResponse}
+              },
+              path: "/api/nested/:nested_id/multi",
+              verb: :post,
+              pipe_through: nil
+            }
+    end
+
     test "It returns nil if no path matches the Phoenix route path for a multi-headed controller action",
          %{
            config: config
