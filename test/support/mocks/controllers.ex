@@ -66,6 +66,30 @@ defmodule Rolodex.Mocks.TestController do
   def multi(_, _), do: nil
 
   @doc [
+    multi: true,
+    get: [
+      auth: :JWTAuth,
+      responses: %{
+        200 => UserResponse,
+        201 => MultiResponse,
+        404 => ErrorResponse
+      }
+    ],
+    post: [
+      auth: :JWTAuth,
+      path_params: [
+        nested_id: [type: :uuid, required: true]
+      ],
+      responses: %{
+        200 => UserResponse,
+        404 => ErrorResponse
+      }
+    ]
+  ]
+  @doc "It's an action used for the same path with multiple HTTP actions"
+  def verb_multi(_, _), do: nil
+
+  @doc [
     auth: :JWTAuth,
     headers: %{"X-Request-Id" => :string}
   ]
