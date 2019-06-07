@@ -322,15 +322,23 @@ defmodule Rolodex.Route do
   ## Handling Multi-Path Actions
 
   Sometimes, a Phoenix controller action function will be used for multiple
-  router paths. Sometimes, the documentation for each path will differ
+  API paths. In these cases, you can document the same controller action multiple
+  times, split across either router path or HTTP method.
+
+  Sometimes, the documentation for each path will differ
   significantly. If you would like for each router path to pair with its own
   docs, you can use the `multi` flag.
 
       # Your router
       defmodule MyRouter do
         scope "/api" do
+          # Same action used across multiple paths
           get "/first", MyController, :index
           get "/:id/second", MyController, :index
+
+          # Same action used across multiple HTTP methods
+          get "/search", MyController, :search
+          post "/search", MyController :search
         end
       end
 
@@ -352,6 +360,19 @@ defmodule Rolodex.Route do
           ]
         ]
         def index(conn, _), do: conn
+
+        @doc [
+          multi: true,
+          get: [
+            query_params: SearchQuery
+            responses: %{200 => MyResponse}
+          ],
+          post: [
+            body: SearchBody,
+            responses: %{200 => MyResponse}
+          ]
+        ]
+        def search(conn, _), do: conn
       end
   """
 
@@ -365,7 +386,7 @@ defmodule Rolodex.Route do
     Schema
   }
 
-  import Rolodex.Utils, only: [to_struct: 2, ok: 1]
+  import Rolodex.Utils, only: [to_struct: 2, ok: 1, indifferent_find: 2]
 
   defstruct [
     :path,
@@ -474,14 +495,9 @@ defmodule Rolodex.Route do
     |> parse_route_docs(desc, route, config)
   end
 
-  defp parse_route_docs(
-         %{multi: true} = metadata,
-         desc,
-         %Router.Route{path: path} = route,
-         config
-       ) do
+  defp parse_route_docs(%{multi: true} = metadata, desc, route, config) do
     metadata
-    |> get_doc_for_path(path)
+    |> get_doc_for_multi_route(route)
     |> parse_route_docs(desc, route, config)
   end
 
@@ -492,17 +508,10 @@ defmodule Rolodex.Route do
     |> ok()
   end
 
-  # When finding docs keyed by route path, the path key could be a string or atom.
-  # So we want to handle both cases, safely (i.e. no `String.to_atom/1`)
-  defp get_doc_for_path(metadata, path) do
-    metadata
-    |> Enum.find(fn
-      {k, _} when is_atom(k) -> Atom.to_string(k) == path
-      {k, _} -> k == path
-    end)
-    |> case do
-      {_, doc} -> doc
-      _ -> nil
+  defp get_doc_for_multi_route(metadata, %Router.Route{path: path, verb: verb}) do
+    case indifferent_find(metadata, path) do
+      nil -> indifferent_find(metadata, verb)
+      doc -> doc
     end
   end
 
