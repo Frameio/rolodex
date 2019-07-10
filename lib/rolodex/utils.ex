@@ -1,13 +1,14 @@
 defmodule Rolodex.Utils do
   @moduledoc false
 
-  # Pipeline friendly dynamic struct creator
+  @doc """
+  Pipeline friendly dynamic struct creator
+  """
   def to_struct(data, module), do: struct(module, data)
 
-  # Pipeline friendly helper to generate {:ok, result} tuples
-  def ok(data), do: {:ok, data}
-
-  # Recursively convert a keyword list into a map
+  @doc """
+  Recursively convert a keyword list into a map
+  """
   def to_map_deep(data, level \\ 0)
   def to_map_deep([], 0), do: %{}
 
@@ -20,7 +21,9 @@ defmodule Rolodex.Utils do
 
   def to_map_deep(data, _), do: data
 
-  # Recursively convert all keys in a map from snake_case to camelCase
+  @doc """
+  Recursively convert all keys in a map from snake_case to camelCase
+  """
   def camelize_map(data) when not is_map(data), do: data
 
   def camelize_map(data) do
@@ -57,6 +60,26 @@ defmodule Rolodex.Utils do
     |> case do
       {_, result} -> result
       _ -> nil
+    end
+  end
+
+  @doc """
+  Grabs the description and metadata map associated with the given function via
+  `@doc` annotations.
+  """
+  @spec fetch_doc_annotation(module(), atom()) :: {:ok, binary(), map()} | {:error, :not_found}
+  def fetch_doc_annotation(controller, action) do
+    controller
+    |> Code.fetch_docs()
+    |> Tuple.to_list()
+    |> Enum.at(-1)
+    |> Enum.find(fn
+      {{:function, ^action, _arity}, _, _, _, _} -> true
+      _ -> false
+    end)
+    |> case do
+      {_, _, _, desc, metadata} -> {:ok, desc, metadata}
+      _ -> {:error, :not_found}
     end
   end
 end

@@ -166,18 +166,23 @@ defmodule Rolodex.DSL do
 
   ### Function Helpers ###
 
-  # Check the given module against the given module type
+  @doc """
+  Check the given module against the given module type
+  """
+  @spec is_module_of_type?(module(), atom()) :: boolean()
   def is_module_of_type?(mod, type) when is_atom(mod) do
-    try do
-      mod.__info__(:functions) |> Keyword.has_key?(type)
-    rescue
+    case Code.ensure_compiled(mod) do
+      {:module, loaded} -> function_exported?(loaded, type, 1)
       _ -> false
     end
   end
 
-  def is_module_of_type?(_), do: false
+  def is_module_of_type?(_, _), do: false
 
+  # @doc """
   # Serializes content body metadata
+  # """
+  # @spec to_content_body_map(function()) :: map()
   def to_content_body_map(fun) do
     %{
       desc: fun.(:desc),

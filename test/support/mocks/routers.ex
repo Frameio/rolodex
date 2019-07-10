@@ -1,20 +1,21 @@
 defmodule Rolodex.Mocks.TestRouter do
-  use Phoenix.Router
+  use Rolodex.Router
 
-  scope "/api", Rolodex.Mocks do
-    get("/demo", TestController, :index)
-    post("/demo/:id", TestController, :conflicted)
-    put("/demo/:id", TestController, :with_bare_maps)
-    delete("/demo/:id", TestController, :undocumented)
+  router Rolodex.Mocks.TestPhoenixRouter do
+    route(:get, "/api/demo")
+    routes([:post, :put, :delete], "/api/demo/:id")
+    get("/api/multi")
+    get("/api/nested/:nested_id/multi")
+    get("/api/partials")
 
-    # Multi-headed action function
-    get("/multi", TestController, :multi)
-    get("/nested/:nested_id/multi", TestController, :multi)
-
-    # This action function uses schemas for query and path params plus partials
-    get("/partials", TestController, :params_via_schema)
-
-    # This route action does not exist
-    put("/demo/missing/:id", TestController, :missing_action)
+    # This route is defined in the Phoenix router but it has no associated
+    # controller action
+    put("/api/demo/missing/:id")
   end
+end
+
+defmodule Rolodex.Mocks.MiniTestRouter do
+  use Rolodex.Router
+
+  router(Rolodex.Mocks.TestPhoenixRouter, do: get("/api/demo"))
 end

@@ -1,4 +1,6 @@
 defmodule Rolodex.Mocks.TestController do
+  use Phoenix.Controller, namespace: Rolodex.Mocks
+
   alias Rolodex.Mocks.{
     UserRequestBody,
     UserResponse,
