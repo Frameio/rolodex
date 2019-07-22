@@ -1,10 +1,10 @@
 defmodule Rolodex.Route do
   @moduledoc """
-  Collects metadata associated with an API route.
+  Parses and collects documentation metadata for a single Phoenix API route.
 
-  `new/2` takes a `Phoenix.Router.Route`, finds the controller action
-  function associated with the route, and collects metadata set in the `@doc`
-  annotations for the function.
+  `new/2` generates a `Rolodex.Route.t()`, a struct of route metdata passed into
+  a `Rolodex.Processor` for serialization. This module also contains information
+  on how to structure `@doc` annotations for your controller action functions.
 
   ### Fields
 
@@ -376,8 +376,6 @@ defmodule Rolodex.Route do
       end
   """
 
-  alias Phoenix.Router
-
   alias Rolodex.{
     Config,
     Headers,
@@ -386,7 +384,9 @@ defmodule Rolodex.Route do
     Schema
   }
 
-  import Rolodex.Utils, only: [to_struct: 2, ok: 1, indifferent_find: 2]
+  alias Rolodex.Router.RouteInfo
+
+  import Rolodex.Utils, only: [to_struct: 2, indifferent_find: 2]
 
   defstruct [
     :path,
@@ -404,7 +404,7 @@ defmodule Rolodex.Route do
     tags: []
   ]
 
-  @phoenix_route_params [:path, :pipe_through, :verb]
+  @route_info_params [:path, :pipe_through, :verb]
 
   @type t :: %__MODULE__{
           id: binary(),
@@ -423,92 +423,50 @@ defmodule Rolodex.Route do
         }
 
   @doc """
-  Checks to see if the given route matches any filter(s) stored in `Rolodex.Config`.
+  Takes a `Rolodex.Router.RouteInfo.t()` and parses the doc annotation metadata
+  into a structured form a `Rolodex.Processor` can serialize into a docs output.
   """
-  @spec matches_filter?(t(), any()) :: boolean()
-  def matches_filter?(route, filters)
+  @spec new(Rolodex.Router.RouteInfo.t() | nil, Rolodex.Config.t()) :: t() | nil
+  def new(nil, _), do: nil
 
-  def matches_filter?(route, filters) when is_list(filters) do
-    Enum.any?(filters, fn
-      filter_opts when is_map(filter_opts) ->
-        keys = Map.keys(filter_opts)
-        Map.take(route, keys) == filter_opts
-
-      filter_fun when is_function(filter_fun) ->
-        filter_fun.(route)
-
-      _ ->
-        false
-    end)
+  def new(route_info, config) do
+    route_info
+    |> parse_route_docs(config)
+    |> build_route(route_info, config)
   end
 
-  def matches_filter?(_, _), do: false
+  defp build_route(route_data, route_info, config) do
+    pipeline_config = fetch_pipeline_config(route_info, config)
 
-  @doc """
-  Looks up a `Phoenix.Router.Route` controller action function, parses any
-  doc annotations, and returns as a struct.
-  """
-  @spec new(Phoenix.Router.Route.t(), Rolodex.Config.t()) :: t() | nil
-  def new(phoenix_route, config) do
-    with {:ok, desc, metadata} <- fetch_route_docs(phoenix_route),
-         {:ok, route_data} <- parse_route_docs(metadata, desc, phoenix_route, config) do
-      build_route(route_data, phoenix_route, config)
-    else
-      _ -> nil
-    end
-  end
-
-  defp build_route(route_data, phoenix_route, config) do
-    pipeline_config = fetch_pipeline_config(phoenix_route, config)
-
-    phoenix_route
-    |> Map.take(@phoenix_route_params)
+    route_info
+    |> Map.take(@route_info_params)
     |> deep_merge(pipeline_config)
     |> deep_merge(route_data)
     |> to_struct(__MODULE__)
   end
 
-  # Uses `Code.fetch_docs/1` to lookup `@doc` annotations for the controller action
-  defp fetch_route_docs(phoenix_route) do
-    case do_docs_fetch(phoenix_route) do
-      {_, _, _, desc, metadata} -> {:ok, desc, metadata}
-      _ -> {:error, :not_found}
-    end
-  end
+  defp parse_route_docs(%RouteInfo{metadata: metadata, desc: desc} = route_info, config),
+    do: parse_route_docs(metadata, desc, route_info, config)
 
-  defp do_docs_fetch(%Router.Route{plug: plug, opts: action}) do
-    plug
-    |> Code.fetch_docs()
-    |> Tuple.to_list()
-    |> Enum.at(-1)
-    |> Enum.find(fn
-      {{:function, ^action, _arity}, _, _, _, _} -> true
-      _ -> false
-    end)
-  end
-
-  defp parse_route_docs(nil, _, _, _), do: {:error, :not_found}
-
-  defp parse_route_docs(kwl, desc, route, config) when is_list(kwl) do
+  defp parse_route_docs(kwl, desc, route_info, config) when is_list(kwl) do
     kwl
     |> Map.new()
-    |> parse_route_docs(desc, route, config)
+    |> parse_route_docs(desc, route_info, config)
   end
 
-  defp parse_route_docs(%{multi: true} = metadata, desc, route, config) do
+  defp parse_route_docs(%{multi: true} = metadata, desc, route_info, config) do
     metadata
-    |> get_doc_for_multi_route(route)
-    |> parse_route_docs(desc, route, config)
+    |> get_doc_for_multi_route(route_info)
+    |> parse_route_docs(desc, route_info, config)
   end
 
   defp parse_route_docs(metadata, desc, _, config) do
     metadata
     |> parse_param_fields()
     |> Map.put(:desc, parse_description(desc, config))
-    |> ok()
   end
 
-  defp get_doc_for_multi_route(metadata, %Router.Route{path: path, verb: verb}) do
+  defp get_doc_for_multi_route(metadata, %RouteInfo{path: path, verb: verb}) do
     case indifferent_find(metadata, path) do
       nil -> indifferent_find(metadata, verb)
       doc -> doc
@@ -579,12 +537,12 @@ defmodule Rolodex.Route do
   # Builds shared `Rolodex.PipelineConfig` data for the given route. The config
   # result will be empty if the route is not piped through any router pipelines or
   # if there is no shared pipelines data in `Rolodex.Config`.
-  defp fetch_pipeline_config(%Router.Route{pipe_through: nil}, _), do: %{}
+  defp fetch_pipeline_config(%RouteInfo{pipe_through: nil}, _), do: %{}
 
   defp fetch_pipeline_config(_, %Config{pipelines: pipelines}) when map_size(pipelines) == 0,
     do: %{}
 
-  defp fetch_pipeline_config(%Router.Route{pipe_through: pipe_through}, %Config{
+  defp fetch_pipeline_config(%RouteInfo{pipe_through: pipe_through}, %Config{
          pipelines: pipelines
        }) do
     Enum.reduce(pipe_through, %{}, fn pt, acc ->

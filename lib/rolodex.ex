@@ -2,13 +2,14 @@ defmodule Rolodex do
   @moduledoc """
   Rolodex generates documentation for your Phoenix API.
 
-  Rolodex inspects a Phoenix Router and transforms the `@doc` annotations on your
-  controller actions into documentation in the format of your choosing.
+  Rolodex transforms the structured `@doc` annotations on your Phoenix Controller
+  action functions into documentation API documentation in the format of your
+  choosing. Rolodex ships with default support for OpenAPI 3.0 (Swagger) docs.
 
   `Rolodex.run/1` encapsulates the full documentation generation process. When
   invoked, it will:
 
-  1. Traverse your Phoenix Router
+  1. Traverse your Rolodex Router
   2. Collect documentation data for the API endpoints exposed by your router
   3. Serialize the data into a format of your choosing (e.g. Swagger JSON)
   4. Write the serialized data out to a destination of your choosing.
@@ -18,25 +19,32 @@ defmodule Rolodex do
 
   ## Features and resources
 
-  - **Reusable components** - See `Rolodex.Schema` for details on how define reusable
-  parameter schemas. See `Rolodex.RequestBody` for details on how to use schemas
-  in your API request body definitions. See `Rolodex.Response` for details on
-  how to use schemas in your API response definitions. See `Rolodex.Headers` for
-  details on how to define reusable headers for your route doc annotations and your
-  responses.
-  - **Structured annotations** - See `Rolodex.Route` for details on how to format
-  annotations on your API route action functions for the Rolodex parser to handle
+  - **Reusable components** — Support for reusable parameter schemas, request
+  bodies, responses, and headers.
+  - **Structured annotations** — Standardized format for annotating your Phoenix
+  Controller action functions with documentation info
   - **Generic serialization** - The `Rolodex.Processor` behaviour encapsulates
   the basic steps needed to serialize API metadata into documentation. Rolodex
-  ships with a valid OpenAPI (Swagger) JSON processor (see: `Rolodex.Processors.OpenAPI`)
+  ships with a valid OpenAPI 3.0 (Swagger) JSON processor
+  (see: `Rolodex.Processors.OpenAPI`)
   - **Generic writing** - The `Rolodex.Writer` behaviour encapsulates the basic
   steps needed to write out formatted docs. Rolodex ships with a file writer (
   see: `Rolodex.Writers.FileWriter`)
 
+  ## Further reading
+
+  - `Rolodex.Router` — for defining which routes Rolodex should document
+  - `Rolodex.Route` — for info on how to structure your doc annotations
+  - `Rolodex.Schema` — for defining reusable request and response data schemas
+  - `Rolodex.RequestBody` — for defining rusable request body parameters
+  - `Rolodex.Response` — for defining reusable API responses
+  - `Rolodex.Headers` — for defining reusable request and response headers
+  - `Rolodex.Config` — for configuring your Phoenix app to use Rolodex
+
   ## High level example
 
       # Your Phoenix router
-      defmodule MyRouter do
+      defmodule MyPhoenixRouter do
         pipeline :api do
           plug MyPlug
         end
@@ -45,6 +53,15 @@ defmodule Rolodex do
           pipe_through [:api]
 
           get "/test", MyController, :index
+        end
+      end
+
+      # Your Rolodex router, which tells Rolodex which routes to document
+      defmodule MyRouter do
+        use Rolodex.Router
+
+        router MyPhoenixRouter do
+          get "/api/test"
         end
       end
 
@@ -125,9 +142,12 @@ defmodule Rolodex do
           [
             title: "MyApp",
             description: "An example",
-            version: "1.0.0",
-            router: MyRouter
+            version: "1.0.0"
           ]
+        end
+
+        def render_groups_spec() do
+          [router: MyRouter]
         end
 
         def auth_spec() do
@@ -282,7 +302,7 @@ defmodule Rolodex do
     RenderGroupConfig,
     RequestBody,
     Response,
-    Route,
+    Router,
     Schema
   }
 
@@ -293,32 +313,17 @@ defmodule Rolodex do
   Runs Rolodex and writes out documentation to the specified destination
   """
   @spec run(Rolodex.Config.t()) :: :ok | {:error, any()}
-  def run(config) do
-    config
-    |> generate_routes()
-    |> process_render_groups(config)
+  def run(%Config{render_groups: groups} = config) do
+    Enum.map(groups, &compile_for_group(&1, config))
   end
 
-  defp generate_routes(%Config{router: router} = config) do
-    router.__routes__()
-    |> Enum.map(&Route.new(&1, config))
-  end
-
-  defp process_render_groups(routes, %Config{render_groups: groups} = config) do
-    Enum.map(groups, &process_render_group(routes, config, &1))
-  end
-
-  defp process_render_group(routes, config, %RenderGroupConfig{processor: processor} = group) do
-    routes = filter_routes(routes, group)
+  defp compile_for_group(%RenderGroupConfig{router: router, processor: processor} = group, config) do
+    routes = Router.build_routes(router, config)
     refs = generate_refs(routes)
 
     config
     |> processor.process(routes, refs)
     |> write(group)
-  end
-
-  defp filter_routes(routes, %RenderGroupConfig{filters: filters}) do
-    Enum.reject(routes, &(&1 == nil || Route.matches_filter?(&1, filters)))
   end
 
   defp write(processed, %RenderGroupConfig{writer: writer, writer_opts: opts}) do
