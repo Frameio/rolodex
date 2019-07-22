@@ -25,7 +25,7 @@ deps in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:rolodex, "~> 0.8.0"}
+    {:rolodex, "~> 0.9.0"}
   ]
 end
 ```

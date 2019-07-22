@@ -2,6 +2,7 @@ defmodule Rolodex.ConfigTest do
   use ExUnit.Case
 
   alias Rolodex.{Config, PipelineConfig, RenderGroupConfig}
+  alias Rolodex.Mocks.TestRouter
 
   defmodule BasicConfig do
     use Rolodex.Config
@@ -10,8 +11,7 @@ defmodule Rolodex.ConfigTest do
       [
         description: "Hello world",
         title: "BasicConfig",
-        version: "0.0.1",
-        router: MyRouter
+        version: "0.0.1"
       ]
     end
   end
@@ -23,15 +23,14 @@ defmodule Rolodex.ConfigTest do
       [
         description: "Hello world",
         title: "BasicConfig",
-        version: "0.0.1",
-        router: MyRouter
+        version: "0.0.1"
       ]
     end
 
     def render_groups_spec() do
       [
-        [writer_opts: [file_name: "api-public.json"]],
-        [writer_opts: [file_name: "api-private.json"]]
+        [router: TestRouter, writer_opts: [file_name: "api-public.json"]],
+        [router: TestRouter, writer_opts: [file_name: "api-private.json"]]
       ]
     end
 
@@ -77,7 +76,6 @@ defmodule Rolodex.ConfigTest do
                pipelines: %{},
                title: "BasicConfig",
                version: "0.0.1",
-               router: MyRouter,
                render_groups: [%RenderGroupConfig{}]
              }
     end
@@ -112,10 +110,15 @@ defmodule Rolodex.ConfigTest do
                },
                title: "BasicConfig",
                version: "0.0.1",
-               router: MyRouter,
                render_groups: [
-                 %RenderGroupConfig{writer_opts: [file_name: "api-public.json"]},
-                 %RenderGroupConfig{writer_opts: [file_name: "api-private.json"]}
+                 %RenderGroupConfig{
+                   router: TestRouter,
+                   writer_opts: [file_name: "api-public.json"]
+                 },
+                 %RenderGroupConfig{
+                   router: TestRouter,
+                   writer_opts: [file_name: "api-private.json"]
+                 }
                ]
              }
     end

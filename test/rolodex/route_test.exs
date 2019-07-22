@@ -1,18 +1,21 @@
 defmodule Rolodex.RouteTest do
   use ExUnit.Case
 
-  alias Phoenix.Router
-
   alias Rolodex.Mocks.{
     TestController,
-    TestRouter,
     UserResponse,
     PaginatedUsersResponse,
     ErrorResponse,
     UserRequestBody
   }
 
-  alias Rolodex.{Config, Route}
+  alias Rolodex.{
+    Config,
+    Route,
+    Utils
+  }
+
+  alias Rolodex.Router.RouteInfo
 
   defmodule(BasicConfig, do: use(Rolodex.Config))
 
@@ -37,60 +40,19 @@ defmodule Rolodex.RouteTest do
     end
   end
 
-  describe "#matches_filter?/2" do
-    setup [:setup_config]
-
-    test "Always returns false when no filters provided", %{config: config} do
-      routes =
-        TestRouter.__routes__()
-        |> Enum.map(&Route.new(&1, config))
-
-      refute routes |> Enum.at(0) |> Route.matches_filter?(:none)
-      refute routes |> Enum.at(1) |> Route.matches_filter?(:none)
-    end
-
-    test "Returns true when for a route that matches a filter map", %{config: config} do
-      routes =
-        TestRouter.__routes__()
-        |> Enum.map(&Route.new(&1, config))
-
-      assert routes |> Enum.at(0) |> Route.matches_filter?([%{path: "/api/demo", verb: :get}])
-      refute routes |> Enum.at(1) |> Route.matches_filter?([%{path: "/api/demo", verb: :get}])
-    end
-
-    test "Returns true for a route that matches a filter function", %{config: config} do
-      filters = [
-        fn
-          %Route{path: "/api/demo/:id", verb: :post} ->
-            true
-
-          _ ->
-            false
-        end
-      ]
-
-      routes =
-        TestRouter.__routes__()
-        |> Enum.map(&Route.new(&1, config))
-
-      refute routes |> Enum.at(0) |> Route.matches_filter?(filters)
-      assert routes |> Enum.at(1) |> Route.matches_filter?(filters)
-    end
-  end
-
   describe "#new/2" do
     setup [:setup_config]
 
     test "It builds a new Rolodex.Route for the specified controller action", %{config: config} do
-      phoenix_route = %Router.Route{
-        plug: TestController,
-        opts: :index,
-        path: "/v2/test",
-        pipe_through: [],
-        verb: :get
-      }
-
-      result = Route.new(phoenix_route, config)
+      result =
+        setup_route_info(
+          controller: TestController,
+          action: :index,
+          verb: :get,
+          path: "/v2/test",
+          pipe_through: []
+        )
+        |> Route.new(config)
 
       assert result == %Route{
                auth: %{
@@ -135,15 +97,15 @@ defmodule Rolodex.RouteTest do
     end
 
     test "It merges controller action params into pipeline params", %{config: config} do
-      phoenix_route = %Router.Route{
-        plug: TestController,
-        opts: :index,
-        path: "/v2/test",
-        pipe_through: [:web],
-        verb: :get
-      }
-
-      result = Route.new(phoenix_route, config)
+      result =
+        setup_route_info(
+          controller: TestController,
+          action: :index,
+          verb: :get,
+          path: "/v2/test",
+          pipe_through: [:web]
+        )
+        |> Route.new(config)
 
       assert result == %Route{
                auth: %{
@@ -195,12 +157,13 @@ defmodule Rolodex.RouteTest do
            config: config
          } do
       result =
-        %Router.Route{
-          plug: TestController,
-          opts: :multi,
+        setup_route_info(
+          controller: TestController,
+          action: :multi,
+          verb: :get,
           path: "/api/nested/:nested_id/multi",
-          verb: :get
-        }
+          pipe_through: []
+        )
         |> Route.new(config)
 
       assert result == %Route{
@@ -215,81 +178,67 @@ defmodule Rolodex.RouteTest do
                },
                path: "/api/nested/:nested_id/multi",
                verb: :get,
-               pipe_through: nil
+               pipe_through: []
              }
     end
 
     test "It uses the Phoenix route verb to pull out docs for a multi-headed controller action",
-        %{
-          config: config
-        } do
-    result =
-      %Router.Route{
-        plug: TestController,
-        opts: :multi,
-        path: "/api/nested/:nested_id/multi",
-        verb: :post
-      }
-      |> Route.new(config)
-
-    assert result == %Route{
-              auth: %{JWTAuth: []},
-              desc: "It's an action used for multiple routes",
-              path_params: %{
-                nested_id: %{type: :uuid, required: true}
-              },
-              responses: %{
-                200 => %{type: :ref, ref: UserResponse},
-                404 => %{type: :ref, ref: ErrorResponse}
-              },
-              path: "/api/nested/:nested_id/multi",
-              verb: :post,
-              pipe_through: nil
-            }
-    end
-
-    test "It returns nil if no path matches the Phoenix route path for a multi-headed controller action",
          %{
            config: config
          } do
       result =
-        %Router.Route{
-          plug: TestController,
-          opts: :multi,
-          path: "/multi/:nested_id/multi/non-existent",
-          verb: :get
-        }
+        setup_route_info(
+          controller: TestController,
+          action: :verb_multi,
+          verb: :post,
+          path: "/api/nested/:nested_id/multi",
+          pipe_through: []
+        )
         |> Route.new(config)
 
-      assert result == nil
+      assert result == %Route{
+               auth: %{JWTAuth: []},
+               desc: "It's an action used for the same path with multiple HTTP actions",
+               path_params: %{
+                 nested_id: %{type: :uuid, required: true}
+               },
+               responses: %{
+                 200 => %{type: :ref, ref: UserResponse},
+                 404 => %{type: :ref, ref: ErrorResponse}
+               },
+               path: "/api/nested/:nested_id/multi",
+               verb: :post,
+               pipe_through: []
+             }
     end
 
     test "Controller action params will win if in conflict with pipeline params", %{
       config: config
     } do
-      phoenix_route = %Router.Route{
-        plug: TestController,
-        opts: :conflicted,
-        path: "/v2/test",
-        pipe_through: [:api],
-        verb: :get
-      }
+      %Route{auth: auth, headers: headers} =
+        setup_route_info(
+          controller: TestController,
+          action: :conflicted,
+          verb: :get,
+          path: "/v2/test",
+          pipe_through: [:api]
+        )
+        |> Route.new(config)
 
-      %Route{auth: auth, headers: headers} = Route.new(phoenix_route, config)
       assert headers == %{"X-Request-Id" => %{type: :string, required: true}}
       assert auth == %{JWTAuth: [], SharedAuth: []}
     end
 
     test "It processes request body and responses with plain maps", %{config: config} do
-      phoenix_route = %Router.Route{
-        plug: TestController,
-        opts: :with_bare_maps,
-        path: "/v2/test",
-        pipe_through: [],
-        verb: :get
-      }
-
-      %Route{body: body, responses: responses} = Route.new(phoenix_route, config)
+      %Route{body: body, responses: responses} =
+        setup_route_info(
+          controller: TestController,
+          action: :with_bare_maps,
+          verb: :get,
+          path: "/v2/test",
+          pipe_through: []
+        )
+        |> Route.new(config)
 
       assert body == %{
                type: :object,
@@ -305,15 +254,15 @@ defmodule Rolodex.RouteTest do
     end
 
     test "It serializes query and path param schema refs", %{config: config} do
-      phoenix_route = %Router.Route{
-        plug: TestController,
-        opts: :params_via_schema,
-        path: "/v2/test",
-        pipe_through: [],
-        verb: :get
-      }
-
-      %Route{query_params: query, path_params: path} = Route.new(phoenix_route, config)
+      %Route{query_params: query, path_params: path} =
+        setup_route_info(
+          controller: TestController,
+          action: :params_via_schema,
+          verb: :get,
+          path: "/v2/test",
+          pipe_through: []
+        )
+        |> Route.new(config)
 
       assert query == %{
                account_id: %{type: :uuid},
@@ -347,15 +296,17 @@ defmodule Rolodex.RouteTest do
     end
 
     test "It handles an undocumented route" do
-      phoenix_route = %Router.Route{
-        plug: TestController,
-        opts: :undocumented,
-        path: "/v2/test",
-        pipe_through: [],
-        verb: :post
-      }
+      result =
+        setup_route_info(
+          controller: TestController,
+          action: :undocumented,
+          verb: :post,
+          path: "/v2/test",
+          pipe_through: []
+        )
+        |> Route.new(Config.new(BasicConfig))
 
-      assert Route.new(phoenix_route, Config.new(BasicConfig)) == %Route{
+      assert result == %Route{
                desc: "",
                headers: %{},
                body: %{},
@@ -368,19 +319,15 @@ defmodule Rolodex.RouteTest do
                verb: :post
              }
     end
-
-    test "It handles a missing controller action" do
-      phoenix_route = %Router.Route{
-        plug: TestController,
-        opts: :does_not_exist,
-        path: "/v2/test",
-        pipe_through: [],
-        verb: :post
-      }
-
-      assert Route.new(phoenix_route, Config.new(BasicConfig)) == nil
-    end
   end
 
   defp setup_config(_), do: [config: Config.new(FullConfig)]
+
+  defp setup_route_info(%RouteInfo{controller: controller, action: action} = route_info) do
+    with {:ok, desc, metadata} <- Utils.fetch_doc_annotation(controller, action) do
+      %{route_info | desc: desc, metadata: metadata}
+    end
+  end
+
+  defp setup_route_info(params), do: params |> RouteInfo.new() |> setup_route_info()
 end

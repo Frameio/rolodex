@@ -7,14 +7,11 @@ defmodule RolodexTest do
     use Rolodex.Config
 
     def spec() do
-      [
-        router: Rolodex.Mocks.TestRouter,
-        server_urls: ["https://api.example.com"]
-      ]
+      [server_urls: ["https://api.example.com"]]
     end
 
     def render_groups_spec() do
-      [[writer_opts: []]]
+      [[router: Rolodex.Mocks.TestRouter, writer_opts: []]]
     end
   end
 
@@ -22,17 +19,14 @@ defmodule RolodexTest do
     use Rolodex.Config
 
     def spec() do
-      [
-        router: Rolodex.Mocks.TestRouter,
-        server_urls: ["https://api.example.com"]
-      ]
+      [server_urls: ["https://api.example.com"]]
     end
 
     def render_groups_spec() do
       [
-        [writer: Rolodex.Writers.Mock],
+        [router: Rolodex.Mocks.TestRouter, writer: Rolodex.Writers.Mock],
         [
-          filters: [%{path: "/api/demo/:id", verb: :delete}],
+          router: Rolodex.Mocks.MiniTestRouter,
           writer: Rolodex.Writers.Mock
         ]
       ]
@@ -657,40 +651,6 @@ defmodule RolodexTest do
                        },
                        "description" => "An error response"
                      },
-                     "MultiResponse" => %{
-                       "description" => nil,
-                       "headers" => %{
-                         "total" => %{
-                           "description" => "Total entries to be retrieved",
-                           "schema" => %{"type" => "integer"}
-                         },
-                         "per-page" => %{
-                           "description" => "Total entries per page of results",
-                           "schema" => %{"type" => "integer"}
-                         },
-                         "limited" => %{
-                           "description" => "Have you been rate limited",
-                           "schema" => %{"type" => "boolean"}
-                         }
-                       },
-                       "content" => %{
-                         "application/json" => %{
-                           "examples" => %{},
-                           "schema" => %{
-                             "$ref" => "#/components/schemas/User"
-                           }
-                         },
-                         "application/lolsob" => %{
-                           "examples" => %{},
-                           "schema" => %{
-                             "type" => "array",
-                             "items" => %{
-                               "$ref" => "#/components/schemas/Comment"
-                             }
-                           }
-                         }
-                       }
-                     },
                      "PaginatedUsersResponse" => %{
                        "content" => %{
                          "application/json" => %{
@@ -925,225 +885,6 @@ defmodule RolodexTest do
                        },
                        "summary" => "It's a test!",
                        "tags" => ["foo", "bar"]
-                     }
-                   },
-                   "/api/demo/{id}" => %{
-                     "post" => %{
-                       "operationId" => "",
-                       "security" => [%{"JWTAuth" => []}],
-                       "parameters" => [
-                         %{
-                           "in" => "header",
-                           "name" => "X-Request-Id",
-                           "schema" => %{
-                             "type" => "string"
-                           }
-                         }
-                       ],
-                       "responses" => %{},
-                       "summary" => "",
-                       "tags" => []
-                     },
-                     "put" => %{
-                       "operationId" => "",
-                       "security" => [],
-                       "parameters" => [
-                         %{
-                           "in" => "header",
-                           "name" => "X-Request-Id",
-                           "required" => true,
-                           "schema" => %{"format" => "uuid", "type" => "string"}
-                         }
-                       ],
-                       "requestBody" => %{
-                         "content" => %{
-                           "application/json" => %{
-                             "schema" => %{
-                               "type" => "object",
-                               "properties" => %{
-                                 "id" => %{
-                                   "type" => "string",
-                                   "format" => "uuid"
-                                 }
-                               }
-                             }
-                           }
-                         }
-                       },
-                       "responses" => %{
-                         "200" => %{
-                           "content" => %{
-                             "application/json" => %{
-                               "schema" => %{
-                                 "type" => "object",
-                                 "properties" => %{
-                                   "id" => %{
-                                     "type" => "string",
-                                     "format" => "uuid"
-                                   }
-                                 }
-                               }
-                             }
-                           }
-                         }
-                       },
-                       "summary" => "",
-                       "tags" => []
-                     }
-                   },
-                   "/api/multi" => %{
-                     "get" => %{
-                       "operationId" => "",
-                       "parameters" => [],
-                       "responses" => %{
-                         "200" => %{"$ref" => "#/components/responses/UserResponse"},
-                         "201" => %{"$ref" => "#/components/responses/MultiResponse"},
-                         "404" => %{"$ref" => "#/components/responses/ErrorResponse"}
-                       },
-                       "security" => [%{"JWTAuth" => []}],
-                       "summary" => "It's an action used for multiple routes",
-                       "tags" => []
-                     }
-                   },
-                   "/api/nested/{nested_id}/multi" => %{
-                     "get" => %{
-                       "operationId" => "",
-                       "parameters" => [
-                         %{
-                           "in" => "path",
-                           "name" => "nested_id",
-                           "required" => true,
-                           "schema" => %{"format" => "uuid", "type" => "string"}
-                         }
-                       ],
-                       "responses" => %{
-                         "200" => %{"$ref" => "#/components/responses/UserResponse"},
-                         "404" => %{"$ref" => "#/components/responses/ErrorResponse"}
-                       },
-                       "security" => [%{"JWTAuth" => []}],
-                       "summary" => "It's an action used for multiple routes",
-                       "tags" => []
-                     }
-                   },
-                   "/api/partials" => %{
-                     "get" => %{
-                       "parameters" => [
-                         %{
-                           "in" => "path",
-                           "name" => "account_id",
-                           "schema" => %{
-                             "type" => "string",
-                             "format" => "uuid"
-                           }
-                         },
-                         %{
-                           "in" => "path",
-                           "name" => "created_at",
-                           "schema" => %{
-                             "type" => "string",
-                             "format" => "date-time"
-                           }
-                         },
-                         %{
-                           "in" => "path",
-                           "name" => "id",
-                           "description" => "The comment id",
-                           "schema" => %{
-                             "type" => "string",
-                             "format" => "uuid"
-                           }
-                         },
-                         %{
-                           "in" => "path",
-                           "name" => "mentions",
-                           "schema" => %{
-                             "type" => "array",
-                             "items" => %{
-                               "type" => "string",
-                               "format" => "uuid"
-                             }
-                           }
-                         },
-                         %{
-                           "in" => "path",
-                           "name" => "team_id",
-                           "required" => true,
-                           "schema" => %{
-                             "type" => "integer",
-                             "maximum" => 10,
-                             "minimum" => 0,
-                             "default" => 2
-                           }
-                         },
-                         %{
-                           "in" => "path",
-                           "name" => "text",
-                           "schema" => %{
-                             "type" => "string"
-                           }
-                         },
-                         %{
-                           "in" => "query",
-                           "name" => "account_id",
-                           "schema" => %{
-                             "type" => "string",
-                             "format" => "uuid"
-                           }
-                         },
-                         %{
-                           "in" => "query",
-                           "name" => "created_at",
-                           "schema" => %{
-                             "type" => "string",
-                             "format" => "date-time"
-                           }
-                         },
-                         %{
-                           "in" => "query",
-                           "name" => "id",
-                           "description" => "The comment id",
-                           "schema" => %{
-                             "type" => "string",
-                             "format" => "uuid"
-                           }
-                         },
-                         %{
-                           "in" => "query",
-                           "name" => "mentions",
-                           "schema" => %{
-                             "type" => "array",
-                             "items" => %{
-                               "type" => "string",
-                               "format" => "uuid"
-                             }
-                           }
-                         },
-                         %{
-                           "in" => "query",
-                           "name" => "team_id",
-                           "required" => true,
-                           "schema" => %{
-                             "type" => "integer",
-                             "maximum" => 10,
-                             "minimum" => 0,
-                             "default" => 2
-                           }
-                         },
-                         %{
-                           "in" => "query",
-                           "name" => "text",
-                           "schema" => %{
-                             "type" => "string"
-                           }
-                         }
-                       ],
-                       "responses" => %{
-                         "200" => %{"$ref" => "#/components/responses/UserResponse"}
-                       },
-                       "operationId" => "",
-                       "security" => [],
-                       "summary" => "",
-                       "tags" => []
                      }
                    }
                  }

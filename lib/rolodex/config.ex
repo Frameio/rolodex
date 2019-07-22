@@ -29,10 +29,10 @@ defmodule Rolodex.Config do
 
   - `spec/0` - Basic configuration for your Rolodex setup
   - `render_groups_spec/0` - Definitions for render targets for your API docs. A
-  render group is combination of: (optional) route filters, a processor, a writer,
+  render group is combination of: a Rolodex Router, a processor, a writer,
   and options for the writer. You can specify more than one render group to create
-  multiple docs outputs for your API. By default, one render group will be defined
-  using the default values in `Rolodex.RenderGroupConfig`.
+  multiple docs outputs for your API. At least one render group specification is
+  required.
   - `auth_spec/0` - Definitions for shared auth patterns to be used in routes.
   Auth definitions should follow the OpenAPI pattern, but keys can use snake_case
   and will be converted to camelCase for the OpenAPI target.
@@ -42,7 +42,6 @@ defmodule Rolodex.Config do
   For `spec/0`, the following are valid options:
 
   - `description` (required) - Description for your documentation output
-  - `router` (required) - `Phoenix.Router` module to inspect
   - `title` (required) - Title for your documentation output
   - `version` (required) - Your documentation's version
   - `default_content_type` (default: "application/json") - Default content type
@@ -66,15 +65,14 @@ defmodule Rolodex.Config do
             version: "1.0.0",
             default_content_type: "application/json+api",
             locale: "en",
-            server_urls: ["https://myapp.io"],
-            router: MyRouter
+            server_urls: ["https://myapp.io"]
           ]
         end
 
         def render_groups_spec() do
           [
-            [writer_opts: [file_name: "api-public.json"]],
-            [writer_opts: [file_name: "api-private.json"]]
+            [router: MyRouter, writer_opts: [file_name: "api-public.json"]],
+            [router: MyRouter, writer_opts: [file_name: "api-private.json"]]
           ]
         end
 
@@ -120,7 +118,6 @@ defmodule Rolodex.Config do
     :description,
     :locale,
     :render_groups,
-    :router,
     :title,
     :version
   ]
@@ -129,7 +126,6 @@ defmodule Rolodex.Config do
     :description,
     :pipelines,
     :render_groups,
-    :router,
     :title,
     :version,
     default_content_type: "application/json",
@@ -144,7 +140,6 @@ defmodule Rolodex.Config do
           locale: binary(),
           pipelines: pipeline_configs() | nil,
           render_groups: [RenderGroupConfig.t()],
-          router: module(),
           auth: map(),
           server_urls: [binary()],
           title: binary(),
@@ -211,10 +206,7 @@ defmodule Rolodex.RenderGroupConfig do
 
   ## Options
 
-  - `filters` (default: `:none`) - A list of maps or functions used to filter
-  out routes from your documentation. Filters are invoked in
-  `Rolodex.Route.matches_filter?/2`. If the match returns true, the route will be
-  filtered out of the docs result for this render group.
+  - `router` (required) - A `Rolodex.Router` definition
   - `processor` (default: `Rolodex.Processors.OpenAPI`) - Module implementing
   the `Rolodex.Processor` behaviour
   - `writer` (default: `Rolodex.Writers.FileWriter`) - Module implementing the
@@ -223,13 +215,15 @@ defmodule Rolodex.RenderGroupConfig do
   passed into the writer behaviour.
   """
 
-  defstruct filters: :none,
-            processor: Rolodex.Processors.OpenAPI,
-            writer: Rolodex.Writers.FileWriter,
-            writer_opts: [file_name: "api.json"]
+  defstruct [
+    :router,
+    processor: Rolodex.Processors.OpenAPI,
+    writer: Rolodex.Writers.FileWriter,
+    writer_opts: [file_name: "api.json"]
+  ]
 
   @type t :: %__MODULE__{
-          filters: [map() | (Rolodex.Route.t() -> boolean())] | :none,
+          router: module(),
           processor: module(),
           writer: module(),
           writer_opts: keyword()
