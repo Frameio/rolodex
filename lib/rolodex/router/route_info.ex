@@ -39,22 +39,4 @@ defmodule Rolodex.Router.RouteInfo do
   end
 
   def from_route_info(_, _), do: nil
-
-  def from_router_tree(%{
-        plug: controller,
-        opts: action,
-        path: path,
-        verb: verb,
-        pipe_through: pipe_through
-      }) do
-    %__MODULE__{
-      controller: controller,
-      action: action,
-      path: path,
-      verb: verb,
-      pipe_through: pipe_through
-    }
-  end
-
-  def from_router_tree(_), do: nil
 end

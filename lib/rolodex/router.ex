@@ -165,33 +165,13 @@ defmodule Rolodex.Router do
   end
 
   defp build_route(verb, path, phoenix_router, config) do
+    http_action_string = verb |> Atom.to_string() |> String.upcase()
+
     phoenix_router
-    |> build_route_info(verb, path)
+    |> Phoenix.Router.route_info(http_action_string, path, "")
+    |> RouteInfo.from_route_info(verb)
     |> with_doc_annotation()
     |> Rolodex.Route.new(config)
-  end
-
-  # Backwards compatibility logic for fetching Phoenix route info:
-  #
-  #   1.4.0 ~ 1.4.7 — Lookup via private router tree
-  #   >= 1.4.7 — Use publicly supported `Phoenix.Router.route_info/4`
-  defp build_route_info(phoenix_router, verb, path) do
-    case function_exported?(Phoenix.Router, :route_info, 4) do
-      true ->
-        http_action_string = verb |> Atom.to_string() |> String.upcase()
-
-        phoenix_router
-        |> Phoenix.Router.route_info(http_action_string, path, "")
-        |> RouteInfo.from_route_info(verb)
-
-      false ->
-        phoenix_router.__routes__()
-        |> Enum.find(fn
-          %{verb: ^verb, path: ^path} -> true
-          _ -> false
-        end)
-        |> RouteInfo.from_router_tree()
-    end
   end
 
   defp with_doc_annotation(%RouteInfo{controller: controller, action: action} = info) do
