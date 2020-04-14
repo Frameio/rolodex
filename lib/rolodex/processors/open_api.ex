@@ -186,11 +186,16 @@ defmodule Rolodex.Processors.OpenAPI do
     |> process_content_body_headers(rest)
   end
 
-  defp process_content_body_ref_data(%{schema: schema, examples: examples}) do
+  defp process_content_body_ref_data(%{schema: schema, examples: examples})
+       when map_size(examples) > 0 do
     %{
       schema: process_schema_field(schema),
       examples: process_content_body_examples(examples)
     }
+  end
+
+  defp process_content_body_ref_data(%{schema: schema}) do
+    %{schema: process_schema_field(schema)}
   end
 
   defp process_content_body_examples(examples),
