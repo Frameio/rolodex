@@ -106,7 +106,6 @@ defmodule RolodexTest do
                      "ErrorResponse" => %{
                        "content" => %{
                          "application/json" => %{
-                           "examples" => %{},
                            "schema" => %{
                              "properties" => %{
                                "message" => %{"type" => "string"},
@@ -136,13 +135,11 @@ defmodule RolodexTest do
                        },
                        "content" => %{
                          "application/json" => %{
-                           "examples" => %{},
                            "schema" => %{
                              "$ref" => "#/components/schemas/User"
                            }
                          },
                          "application/lolsob" => %{
-                           "examples" => %{},
                            "schema" => %{
                              "type" => "array",
                              "items" => %{
@@ -639,7 +636,6 @@ defmodule RolodexTest do
                      "ErrorResponse" => %{
                        "content" => %{
                          "application/json" => %{
-                           "examples" => %{},
                            "schema" => %{
                              "properties" => %{
                                "message" => %{"type" => "string"},
