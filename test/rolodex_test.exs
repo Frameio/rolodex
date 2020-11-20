@@ -233,7 +233,7 @@ defmodule RolodexTest do
                      "User" => %{
                        "type" => "object",
                        "description" => "A user record",
-                       "required" => ["id", "email"],
+                       "required" => ["parent", "id", "email"],
                        "properties" => %{
                          "id" => %{
                            "type" => "string",
@@ -731,7 +731,7 @@ defmodule RolodexTest do
                      "User" => %{
                        "type" => "object",
                        "description" => "A user record",
-                       "required" => ["id", "email"],
+                       "required" => ["parent", "id", "email"],
                        "properties" => %{
                          "id" => %{
                            "type" => "string",

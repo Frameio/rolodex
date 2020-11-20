@@ -24,7 +24,7 @@ defmodule Rolodex.SchemaTest do
                  id: %{type: :uuid, desc: "The id of the user", required: true},
                  email: %{type: :string, desc: "The email of the user", required: true},
                  comment: %{type: :ref, ref: Comment},
-                 parent: %{type: :ref, ref: Parent},
+                 parent: %{type: :ref, ref: Parent, required: true},
                  comments: %{type: :list, of: [%{type: :ref, ref: Comment}]},
                  short_comments: %{type: :list, of: [%{type: :ref, ref: Comment}]},
                  comments_of_many_types: %{
@@ -72,7 +72,7 @@ defmodule Rolodex.SchemaTest do
                properties: %{
                  id: %{desc: "The id of the user", type: :uuid, required: true},
                  email: %{desc: "The email of the user", type: :string, required: true},
-                 parent: %{type: :ref, ref: Parent},
+                 parent: %{type: :ref, ref: Parent, required: true},
                  comment: %{type: :ref, ref: Comment},
                  comments: %{
                    type: :list,

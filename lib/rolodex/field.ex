@@ -188,7 +188,7 @@ defmodule Rolodex.Field do
 
   defp create_field(%{type: type} = metadata) do
     cond do
-      get_ref_type(type) in @ref_types -> %{type: :ref, ref: type}
+      get_ref_type(type) in @ref_types -> Map.merge(metadata, %{type: :ref, ref: type})
       true -> metadata
     end
   end
