@@ -15,7 +15,7 @@ defmodule Rolodex.Mocks.User do
     field(:comment, Rolodex.Mocks.Comment)
 
     # Nested schema with a cyclical dependency
-    field(:parent, Rolodex.Mocks.Parent)
+    field(:parent, Rolodex.Mocks.Parent, required: true)
 
     # List of one type
     field(:comments, :list, of: [Rolodex.Mocks.Comment])
